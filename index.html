@@ -1331,13 +1331,14 @@ const LIVE = {
         token = d.nextPageToken || "";
         if (!token) break;
       }
-      return Promise.all(out.slice(0, want).map(c => rec("youtube",
-        "https://www.youtube.com/watch?v=" + vid + "&lc=" + encodeURIComponent(c.id),
+      const at = (id) => "https://www.youtube.com/watch?v=" + vid + "&lc=" + encodeURIComponent(id);
+      return Promise.all(out.slice(0, want).map(async c => rec("youtube", at(c.id),
         {summary: c.s.textOriginal || stripTags(c.s.textDisplay), published: c.s.publishedAt,
          source: c.s.authorDisplayName,
          extra: {author: c.s.authorDisplayName, likes: c.s.likeCount,
                  comments: c.s.totalReplyCount, type: c.parent ? "reply" : "comment",
-                 parent: c.parent, video: vid}})));
+                 // the id of the row this answers, so the reply tree joins up in MARSAD
+                 parent: c.parent ? await zsHash("youtube", at(c.parent)) : "", thread: vid}})));
     }},
   wikipedia: {
     label: "Wikipedia", note: "Articles, revisions, talk pages and readership, in any language edition. No key.",
@@ -1377,7 +1378,7 @@ const LIVE = {
         for (const lg of langs) {
           if (!titles[lg]) { rows.push(null); continue; }
           const d = await getJSON(wapi(lg, "action=query&prop=extracts|info|revisions&explaintext=1" +
-            "&exsectionformat=plain&inprop=url&rvprop=timestamp|user&rvlimit=1&redirects=1&titles=" +
+            "&exsectionformat=wiki&inprop=url&rvprop=timestamp|user&rvlimit=1&redirects=1&titles=" +
             encodeURIComponent(titles[lg])));
           const p = ((((d.query || {}).pages) || [])[0]) || {};
           if (p.missing || !p.extract) { rows.push(null); continue; }
@@ -1385,6 +1386,7 @@ const LIVE = {
           rows.push(await rec("wikipedia", p.fullurl || wikiUrl(lg, p.title),
             {title: p.title, summary: p.extract, published: rv.timestamp, source: wikiHost(lg),
              language: lg, extra: {editor: rv.user, words: String(p.extract).split(/\s+/).length,
+                                   of: mode === "compare" ? (titles[lang] || title) : "",
                                    type: mode === "compare" ? "language_version" : "article"}}));
         }
         if (!rows.filter(Boolean).length) throw new Err(trUI("No article with that exact title. Try Search articles first, then copy the title."));
@@ -1478,12 +1480,14 @@ const LIVE = {
       const path = o.sort === "new" ? "search_by_date" : "search";
       const d = await getJSON("https://hn.algolia.com/api/v1/" + path + "?tags=(story,comment)" +
         "&hitsPerPage=" + Math.min(o.limit, 100) + "&query=" + encodeURIComponent(q));
-      return Promise.all((d.hits || []).map(h => rec("hackernews",
-        "https://news.ycombinator.com/item?id=" + h.objectID,
+      const at = (id) => "https://news.ycombinator.com/item?id=" + id;
+      return Promise.all((d.hits || []).map(async h => rec("hackernews", at(h.objectID),
         {title: h.title || h.story_title || "", summary: stripTags(h.comment_text || h.story_text || ""),
          published: h.created_at, source: "news.ycombinator.com", language: "en",
          extra: {author: h.author, likes: h.points, comments: h.num_comments,
-                 type: h.comment_text ? "comment" : "story", link: h.url}})));
+                 type: h.comment_text ? "comment" : "story", link: h.url,
+                 parent: h.parent_id ? await zsHash("hackernews", at(h.parent_id)) : "",
+                 thread: h.story_id ? await zsHash("hackernews", at(h.story_id)) : ""}})));
     }},
   stackexchange: {
     label: "Stack Exchange", note: "Questions with their text from any Stack Exchange site, no key.",
@@ -2877,6 +2881,23 @@ async function openProject(file) {
 }
 
 // ------------------------------------------------------------------ prepare posts, test a difference
+// One row per post is right for social media. An article or a paper is one row of many thousands of
+// characters, which leaves the word, topic and tone cards with almost nothing to count, so where a file
+// holds documents this offers to cut them into parts.
+function splitDocsField(p) {
+  const d = SCAN.long_documents || {};
+  if (!d.worth_offering && !p.split_documents) return "";
+  const now = p.split_documents || "";
+  const help = `This file has ${fmt(d.documents || 0)} ${d.documents === 1 ? "row" : "rows"} longer than 1,200 ` +
+    `characters (the longest is ${fmt(d.longest || 0)}). A whole article in one row gives the word, topic and ` +
+    `tone cards one unit to work on instead of many, so their results say very little. Splitting gives each ` +
+    `section or paragraph its own row, and every part keeps a link back to the document it came from. ` +
+    `Engagement stays on the first part, so totals do not change.`;
+  const opt = (v, label) => `<option value="${v}"${now === v ? " selected" : ""}>${esc(label)}</option>`;
+  return `<div><label for="pp-u">${esc(trUI("Split long documents into parts"))}${iMark(help)}</label>
+    <select id="pp-u">${opt("", trUI("Keep each document in one row"))}
+      ${opt("section", trUI("By section heading"))}${opt("paragraph", trUI("By paragraph"))}</select></div>`;
+}
 function preparePage() {
   const p = (SCAN.prepared || {}).options || {}, n = SCAN.posts_loaded || SCAN.posts;
   modal("Prepare posts", `<p>These options change which posts every analysis uses. They always start from all ${fmt(n)} loaded posts, so you can change or clear them at any time.</p>
@@ -2885,6 +2906,7 @@ function preparePage() {
       <div><label for="pp-c">At most this many posts per account${iMark("Each account counts at most this many times (posts picked at random). If a result changes a lot, a few very active accounts were driving it. Try 5 or 10.")}</label><input type="number" id="pp-c" min="0" step="1" value="${p.cap_per_account || ""}" placeholder="no limit"></div>
       <div><label for="pp-d">Split into two periods at this date${iMark("Posts before this day and posts from this day on become two groups, compared like two files. Use the date of an event to see what changed.")}</label><input type="date" id="pp-d" value="${esc(p.split_date || "")}" min="${esc((SCAN.date_from || "").slice(0, 10))}" max="${esc((SCAN.date_to || "").slice(0, 10))}"></div>
       <div><label for="pp-r">Random seed${iMark("The same seed gives the same sample again, so others can repeat your work.")}</label><input type="number" id="pp-r" value="${p.seed || 7}"></div>
+      ${splitDocsField(p)}
     </div>
     <div class="opt-actions" style="gap:8px"><button class="btn" id="pp-clear">No sample, limit or split</button><button class="btn primary" id="pp-go">Apply</button></div><div class="small-print" id="pp-msg"></div>`);
   const apply = async o => {
@@ -2899,7 +2921,7 @@ function preparePage() {
     } catch (e) { busy(false); $("#pp-msg").textContent = pyErr(e); }
   };
   const keepF = () => { const o = prepOpts(), k = {}; FKEYS.forEach(x => { if (o[x] != null) k[x] = o[x]; }); return k; };
-  $("#pp-go").onclick = () => apply({...keepF(), sample_n: +$("#pp-s").value || null, cap_per_account: +$("#pp-c").value || null, split_date: $("#pp-d").value || null, seed: +$("#pp-r").value || 7});
+  $("#pp-go").onclick = () => apply({...keepF(), sample_n: +$("#pp-s").value || null, cap_per_account: +$("#pp-c").value || null, split_date: $("#pp-d").value || null, seed: +$("#pp-r").value || 7, split_documents: ($("#pp-u") || {}).value || null});
   $("#pp-clear").onclick = () => apply(keepF());
 }
 function testDiff(id, a, b) {
