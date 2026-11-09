@@ -187,6 +187,35 @@ html[dir="rtl"] .drawer{box-shadow:6px 0 24px rgba(0,0,0,.14)}
 .srcsteps li{margin-bottom:8px}
 .srcsteps a{color:var(--k-tea-30-80)}
 .srcsteps .small-print{display:block}
+.crumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--k-blu-35-20)}
+.crumb b{color:var(--ink);font-weight:650}
+.platgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 10px}
+@media(max-width:1100px){.platgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.platgrid{grid-template-columns:1fr}}
+.platcard{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"mark head" "mark blurb" "mark meta";column-gap:10px;row-gap:2px;align-items:center;text-align:start;border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--k-n-100);width:100%;box-sizing:border-box;color:inherit;cursor:pointer;min-height:44px}
+.platcard .platmark{grid-area:mark;align-self:start}
+.platcard .platname{grid-area:head}
+.platcard .platblurb{grid-area:blurb}
+.platcard .platmeta{grid-area:meta}
+.platmeta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.platcard:hover{background:var(--k-tea-100-40);border-color:var(--k-tea-75-20)}
+.platcard.on{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+.platmark{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;letter-spacing:.02em;
+  box-shadow:inset 0 0 0 1px rgba(16,33,46,.14)}
+html[data-theme="dark"] .platmark{box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+.platmark.small{width:22px;height:22px;font-size:10px}
+.platname{font-size:14px;font-weight:650;color:var(--ink)}
+.platblurb{font-size:12px;line-height:1.4;color:var(--k-blu-35-20)}
+.platmeta{font-size:11px;color:var(--k-blu-45-20)}
+.platname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.platneed{white-space:nowrap;margin-inline-start:8px}
+.platbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.platnow{display:flex;align-items:center;gap:7px;font-weight:650;color:var(--ink)}
+.methodrow{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.methodbtn{border:1px solid var(--border);background:var(--k-n-100);color:inherit;border-radius:999px;padding:9px 14px;font:inherit;font-size:13px;cursor:pointer;min-height:40px}
+.methodbtn:hover{background:var(--k-tea-100-40);border-color:var(--k-tea-75-20)}
+.methodbtn.on{background:var(--k-tea-90-40);border-color:var(--teal);font-weight:650}
+.zspanel{margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
 .catgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:0 0 14px}
 .catcard{display:flex;flex-direction:column;gap:4px;text-align:start;border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--k-n-100);width:100%;box-sizing:border-box;color:inherit;cursor:pointer;min-height:44px}
 .catcard:hover{background:var(--k-tea-100-40);border-color:var(--k-tea-75-20)}
@@ -656,7 +685,8 @@ const SOCIAL_COLLECTORS = [
   ["Telegram", "Already running", "ready"], ["YouTube", "Already running", "ready"]];
 let SRC = "own";
 let COLLECT_SRC = "";
-let COLLECT_CAT = "";             // "" shows the eight categories rather than a source
+let COLLECT_CAT = "";             // "" shows the eight categories rather than a platform
+let COLLECT_PLAT = "";            // the platform picked inside that category
 let COLLECT_MODE = "";            // which of a source's modes is picked, for the ones that have modes
 const WIKI_LANGS = [["ar", "العربية"], ["en", "English"], ["fr", "Français"], ["es", "Español"],
                     ["de", "Deutsch"], ["tr", "Türkçe"], ["fa", "فارسی"], ["ur", "اردو"],
@@ -1005,12 +1035,27 @@ function act(name, el) {
   if (name === "runcollect") runCollect();
   if (name === "ccat") {
     COLLECT_CAT = el.dataset.cat;
-    const cat = COLLECT_CATS.filter(c => c.key === COLLECT_CAT)[0];
-    COLLECT_SRC = (cat && cat.src[0]) || "";
-    COLLECT_MODE = "";
+    COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = "";
     render();
   }
-  if (name === "ccatback") { COLLECT_CAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; render(); }
+  if (name === "ccatback") {
+    COLLECT_CAT = ""; COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = "";
+    render();
+  }
+  if (name === "cplat") {
+    COLLECT_PLAT = el.dataset.plat;
+    pickMethod(methodsOf(COLLECT_PLAT)[0]);
+    render();
+  }
+  if (name === "cplatback") { COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; render(); }
+  if (name === "srcback") {
+    SRC = "own"; COLLECT_CAT = ""; COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = "";
+    render();
+  }
+  if (name === "cmethod") {
+    pickMethod(methodsOf(COLLECT_PLAT)[+el.dataset.i]);
+    render();
+  }
   if (name === "collecthelp") go(helpRoute("help/a/collecting-in-the-page"));
   if (name === "forgetkeys") { forgetKeys(); render(); }
   if (name === "save") toggleSave(el.dataset.id);
@@ -1562,43 +1607,6 @@ const LIVE = {
     }}
 };
 
-// The eight things a MARSAD researcher might want to collect. A category lists the sources this page
-// can call itself; where it has none, it says so rather than offering a button that does nothing.
-const COLLECT_CATS = [
-  {key: "social", icon: "people", label: "Social Media",
-   detail: "Posts, comments, accounts and engagement",
-   src: ["bluesky", "bluesky_user", "mastodon", "mastodon_user", "mastodon_public", "reddit", "youtube", "youtube_comments"],
-   note: "TikTok, Instagram, Threads and X allow no search from a web page at all. Record those while you browse, with Zeeschuimer below."},
-  {key: "news", icon: "report", label: "News & Media",
-   detail: "Headlines, outlets, coverage and framing",
-   src: ["gdelt", "guardian"],
-   note: "Both collect the headline and the provider's summary, not the article text. Media Cloud, Event Registry and the paid news APIs keep their keys on a server, so they run on the MARSAD platform instead."},
-  {key: "wiki", icon: "topics", label: "Wikipedia & Encyclopedias",
-   detail: "Article text, revisions, talk pages, readership",
-   src: ["wikipedia", "wikidata"],
-   note: "Wikipedia text is CC BY-SA: you may analyse and quote it, and anything you republish has to credit Wikipedia and its editors and carry the same licence."},
-  {key: "web", icon: "quote", label: "Websites, Blogs & Forums",
-   detail: "Public discussion boards and the threads on them",
-   src: ["reddit", "hackernews", "stackexchange"],
-   note: "Reading an arbitrary web page or blog needs a server to fetch it, because a page cannot fetch another site that has not allowed it. That one belongs on the MARSAD platform."},
-  {key: "academic", icon: "spread", label: "Academic Research",
-   detail: "Papers, abstracts, venues and citations",
-   src: ["openalex", "crossref"],
-   note: "For ACL Anthology specifically, the package ships a command-line collector that searches the whole Anthology offline."},
-  {key: "gov", icon: "society", label: "Government & Public Documents",
-   detail: "Legislation, debates, reports, official statements",
-   src: [],
-   note: "No government or intergovernmental body offers a public API a web page may call directly. These are collected on the MARSAD platform, or downloaded by hand and loaded here with Upload your data."},
-  {key: "video", icon: "react", label: "Video, Podcasts & Transcripts",
-   detail: "Videos, the comments under them, spoken-word sources",
-   src: ["youtube", "youtube_comments"],
-   note: "Transcripts are not available through any public API. Download the captions from the platform itself, or transcribe the audio, then load the text here."},
-  {key: "data", icon: "all", label: "Open Data & Public Datasets",
-   detail: "Datasets, their licences and how they are used",
-   src: ["huggingface"],
-   note: "Kaggle, Data.gov and the World Bank need either a key or a server, so they are collected on the MARSAD platform."}
-];
-
 function Err(msg) { this.message = msg; this.plain = true; }
 Err.prototype = Object.create(Error.prototype);
 
@@ -1629,34 +1637,124 @@ function collectMsg(html, kind) {
   if (box) box.innerHTML = html ? `<div class="cmsg ${kind || ""}">${html}</div>` : "";
 }
 
-// Which of the shared input fields this source wants right now. A source whose modes ask for
+// One registry for every collectable platform: its name, what it is, whether it needs a credential,
+// and which collection methods it offers. A method names the collector it runs (`src`) and, where one
+// collector serves several methods, which mode of it. Reddit and YouTube are listed by two categories
+// each and defined once here, so neither the collector nor its record is duplicated.
+const COLLECT_PLATFORMS = {
+  bluesky: {name: "Bluesky", mark: "B", tint: ["#0085FF", "#111418"], blurb: "Posts and accounts", need: "open",
+            methods: [["bluesky", "", "Search public posts"],
+                      ["bluesky_user", "", "Posts from one account"]]},
+  mastodon: {name: "Mastodon", mark: "M", tint: ["#563ACC", "#FFFFFF"], blurb: "Hashtags, accounts, timelines", need: "open",
+             methods: [["mastodon", "", "Posts carrying a hashtag"],
+                       ["mastodon_user", "", "Posts from one account"],
+                       ["mastodon_public", "", "A whole server's timeline"]]},
+  reddit: {name: "Reddit", mark: "R", tint: ["#FF4500", "#111418"], blurb: "Posts and discussions", need: "patchy",
+           methods: [["reddit", "", "Search posts"]]},
+  youtube: {name: "YouTube", mark: "Y", tint: ["#FF0000", "#111418"], blurb: "Videos and comments", need: "key",
+            methods: [["youtube", "", "Search videos"],
+                      ["youtube_comments", "", "Comments on one video"]]},
+  gdelt: {name: "GDELT", mark: "G", tint: ["#0F6E7A", "#FFFFFF"], blurb: "World news index", need: "open",
+          methods: [["gdelt", "", "Search news coverage"]]},
+  guardian: {name: "The Guardian", mark: "TG", tint: ["#052962", "#FFFFFF"], blurb: "One newspaper's archive", need: "key",
+             methods: [["guardian", "", "Search articles"]]},
+  wikipedia: {name: "Wikipedia", mark: "W", tint: ["#000000", "#FFFFFF"], blurb: "Articles, edits, readership", need: "open",
+              methods: [["wikipedia", "search", "Search articles"],
+                        ["wikipedia", "article", "Collect an article"],
+                        ["wikipedia", "compare", "Compare languages"],
+                        ["wikipedia", "revisions", "Revision history"],
+                        ["wikipedia", "views", "Pageview trends"],
+                        ["wikipedia", "talk", "Talk page"],
+                        ["wikipedia", "links", "Related articles"]]},
+  wikidata: {name: "Wikidata", mark: "WD", tint: ["#006699", "#FFFFFF"], blurb: "Structured items", need: "open",
+             methods: [["wikidata", "", "Search items"]]},
+  hackernews: {name: "Hacker News", mark: "HN", tint: ["#FF6600", "#111418"], blurb: "Stories and comments", need: "open",
+               methods: [["hackernews", "", "Search the archive"]]},
+  stackexchange: {name: "Stack Exchange", mark: "SE", tint: ["#1E5397", "#FFFFFF"], blurb: "Questions and answers", need: "open",
+                  methods: [["stackexchange", "", "Search questions"]]},
+  openalex: {name: "OpenAlex", mark: "OA", tint: ["#000000", "#FFFFFF"], blurb: "Papers and citations", need: "open",
+             methods: [["openalex", "", "Search papers"]]},
+  crossref: {name: "Crossref", mark: "CR", tint: ["#3EB1C8", "#111418"], blurb: "Publisher records", need: "open",
+             methods: [["crossref", "", "Search records"]]},
+  huggingface: {name: "Hugging Face", mark: "HF", tint: ["#FFD21E", "#111418"], blurb: "Public datasets", need: "open",
+                methods: [["huggingface", "", "Search datasets"]]}
+};
+// What each badge claims, and nothing more. None of these says a provider is known to be working:
+// whether it accepts a call from a web page is only settled when you run it.
+const NEED = {open: ["ready", "No key"], key: ["key", "Needs a key"],
+              patchy: ["approval", "Often refused"]};
+
+const COLLECT_CATS = [
+  {key: "social", icon: "people", label: "Social Media",
+   detail: "Posts, comments, accounts and engagement",
+   plat: ["bluesky", "mastodon", "reddit", "youtube"],
+   note: "TikTok, Instagram, Threads and X allow no search from a web page at all. Record those while you browse, with Zeeschuimer."},
+  {key: "news", icon: "report", label: "News & Media",
+   detail: "Headlines, outlets, coverage and framing",
+   plat: ["gdelt", "guardian"],
+   note: "Both collect the headline and the provider's summary, not the article text. The paid news APIs keep their keys on a server, so they run on the MARSAD platform instead."},
+  {key: "wiki", icon: "topics", label: "Wikipedia & Encyclopedias",
+   detail: "Article text, revisions, talk pages, readership",
+   plat: ["wikipedia", "wikidata"],
+   note: "Wikipedia text is CC BY-SA: you may analyse and quote it, and anything you republish has to credit Wikipedia and its editors and carry the same licence."},
+  {key: "web", icon: "quote", label: "Websites, Blogs & Forums",
+   detail: "Public discussion boards and the threads on them",
+   plat: ["hackernews", "stackexchange", "reddit"],
+   note: "Reading an arbitrary web page or blog needs a server to fetch it, because a page cannot fetch another site that has not allowed it. That one belongs on the MARSAD platform."},
+  {key: "academic", icon: "spread", label: "Academic Research",
+   detail: "Papers, abstracts, venues and citations",
+   plat: ["openalex", "crossref"],
+   note: "For ACL Anthology specifically, the package ships a command-line collector that searches the whole Anthology offline."},
+  {key: "gov", icon: "society", label: "Government & Documents",
+   detail: "Legislation, debates, reports, official statements",
+   plat: [],
+   note: "No government or intergovernmental body offers a public API a web page may call directly. These are collected on the MARSAD platform, or downloaded by hand and loaded here with Upload a dataset."},
+  {key: "video", icon: "react", label: "Video & Podcasts",
+   detail: "Videos, the comments under them, spoken-word sources",
+   plat: ["youtube"],
+   note: "Transcripts are not available through any public API. Download the captions from the platform itself, or transcribe the audio, then load the text here."},
+  {key: "data", icon: "all", label: "Open Data & Datasets",
+   detail: "Datasets, their licences and how they are used",
+   plat: ["huggingface"],
+   note: "Kaggle, Data.gov and the World Bank need either a key or a server, so they are collected on the MARSAD platform."}
+];
+
+const catOf = (key) => COLLECT_CATS.filter(c => c.key === key)[0];
+const methodsOf = (plat) => ((COLLECT_PLATFORMS[plat] || {}).methods) || [];
+const methodCount = (cat) => cat.plat.reduce((n, p) => n + methodsOf(p).length, 0);
+// The method in play: whichever of this platform's methods matches the collector and mode on state.
+function methodNow(plat) {
+  const all = methodsOf(plat);
+  const hit = all.filter(m => m[0] === COLLECT_SRC && (m[1] || "") === (COLLECT_MODE || ""))[0];
+  return hit || all[0] || null;
+}
+function pickMethod(m) {
+  COLLECT_SRC = m ? m[0] : "";
+  COLLECT_MODE = m ? (m[1] || "") : "";
+}
+
+// Which of the shared input fields this collector wants right now. A collector whose modes ask for
 // different inputs lists them per mode; everything else has one fixed set.
 function fieldsNow(spec, mode) {
   const per = spec.modeFields || {};
   return (mode && per[mode]) || spec.fields || [];
 }
-const modeNow = (spec) => {
-  if (!spec || !spec.modes) return "";
-  const el = $("#c-mode");
-  const want = el && el.value;
-  return spec.modes.some(m => m[0] === want) ? want : spec.modes[0][0];
-};
 
 async function runCollect() {
   if (COLLECTING) return;
-  const src = ($("#c-src") || {}).value, spec = LIVE[src];
+  const spec = LIVE[COLLECT_SRC];
   if (!spec) return;
   const q = (($("#c-q") || {}).value || "").trim();
   if (!q && !spec.noq) { collectMsg(esc(trUI("Type what to search for first.")), "bad"); return; }
   const val = (id) => (($("#" + id) || {}).value || "");
   const opts = {limit: Math.max(1, Math.min(500, parseInt(val("c-n"), 10) || 50)),
-                mode: modeNow(spec), lang: val("c-lang"), instance: val("c-inst"),
+                mode: COLLECT_MODE, lang: val("c-lang"), instance: val("c-inst"),
                 scope: val("c-scope"), wikilang: val("c-wlang"), langs: val("c-langs"),
                 sub: val("c-sub"), site: val("c-site"), sort: val("c-sort"), days: val("c-days"),
                 key: val("c-key").trim()};
   if (spec.key) {
     if (!opts.key) { collectMsg(esc(trUI("This source needs a key. Paste yours above.")), "bad"); return; }
-    setKey(src, opts.key, !!($("#c-remember") || {}).checked);
+    setKey(COLLECT_SRC, opts.key, !!($("#c-remember") || {}).checked);
   }
   COLLECTING = true;
   const btn = $("#c-go"); if (btn) { btn.disabled = true; btn.textContent = trUI("Collecting..."); }
@@ -1674,11 +1772,12 @@ async function runCollect() {
     rows.forEach(r => { if (!r.rights) r.rights = fallback; });
     const stamp = new Date().toISOString().slice(0, 10);
     const shown = (spec.short ? spec.short(q, opts) : q) || opts.instance || "all";
-    const tag = (spec.modes ? opts.mode + "-" : "") + shown;
-    const name = src + "-" + tag.replace(/[^\w؀-ۿ-]+/g, "_").slice(0, 48) + "-" + stamp + ".csv";
+    const tag = (COLLECT_MODE ? COLLECT_MODE + "-" : "") + shown;
+    const name = COLLECT_SRC + "-" + tag.replace(/[^\w؀-ۿ-]+/g, "_").slice(0, 48) + "-" + stamp + ".csv";
+    const plat = COLLECT_PLATFORMS[COLLECT_PLAT] || {};
     files.length = 0;
     loadMode = "combine";
-    files.push({name, label: spec.label + (q ? ": " + shown.slice(0, 40) : ""),
+    files.push({name, label: (plat.name || spec.label) + (q ? ": " + shown.slice(0, 40) : ""),
                 data: new TextEncoder().encode(toCSV(rows))});
     showFiles();
     collectMsg(esc(rows.length + " " + trUI("rows collected. Opening them now.")), "ok");
@@ -1691,38 +1790,69 @@ async function runCollect() {
   }
 }
 
-// What would you like to collect? Eight categories, rather than a list of seventeen source names.
+// --- step 1: what would you like to collect? ------------------------------------------------------
 function collectCats() {
-  const card = (c, i) => {
-    const n = c.src.length;
-    const count = n ? (n + " " + trUI(n === 1 ? "source you can run here" : "sources you can run here"))
-                    : trUI("Nothing this page can run yet");
+  const card = (c) => {
+    const names = c.plat.map(p => COLLECT_PLATFORMS[p].name).join(", ");
+    const n = c.plat.length, m = methodCount(c);
+    const count = n ? `${n} ${trUI(n === 1 ? "platform" : "platforms")}, ${m} ${trUI(m === 1 ? "method" : "methods")}`
+                    : trUI("No collector yet");
     return `<button class="catcard${n ? "" : " empty"}" data-act="ccat" data-cat="${c.key}">
       <span class="cathead"><span class="explore-icon">${ico(c.icon, "")}</span>
         <span class="catcount">${esc(count)}</span></span>
-      <span class="cattitle">${i + 1}. ${esc(trUI(c.label))}</span>
-      <span class="catdesc">${esc(trUI(c.detail))}</span></button>`;
+      <span class="cattitle">${esc(trUI(c.label))}</span>
+      <span class="catdesc">${esc(names || trUI(c.detail))}</span></button>`;
   };
-  return `<p>${esc(trUI("Pick what you are after. Each one opens a form that runs here, in this page: the only thing that leaves your browser is the search you type, and it goes to the source you picked, never to MARSAD."))}</p>
+  return `<p>${esc(trUI("Pick what you are after, then the platform. Each collector runs here, in this page."))}</p>
     <div class="catgrid">${COLLECT_CATS.map(card).join("")}</div>`;
 }
 
+// --- step 2: choose a platform --------------------------------------------------------------------
+function collectPlatforms(cat) {
+  const card = (key) => {
+    const p = COLLECT_PLATFORMS[key], on = key === COLLECT_PLAT;
+    const [cls, label] = NEED[p.need] || NEED.open;
+    const n = p.methods.length;
+    return `<button class="platcard${on ? " on" : ""}" data-act="cplat" data-plat="${key}" aria-pressed="${on}">
+      <span class="platmark" aria-hidden="true" style="background:${p.tint[0]};color:${p.tint[1]}">${esc(p.mark)}</span>
+      <span class="platname">${esc(p.name)}</span>
+      <span class="platblurb">${esc(trUI(p.blurb))}</span>
+      <span class="platmeta"><span>${n} ${esc(trUI(n === 1 ? "method" : "methods"))}</span>
+        <span class="badge ${cls} platneed">${esc(trUI(label))}</span></span></button>`;
+  };
+  return `<h2 class="srcsub">${esc(trUI("Choose a platform"))}</h2>
+    <div class="platgrid">${cat.plat.map(card).join("")}</div>
+    <p class="small-print">${esc(trUI("A badge says what a platform asks of you, not that it is known to be working: whether a provider accepts a call from a web page is settled only when you run it. If one refuses, the page says so and collects nothing."))}</p>`;
+}
+
+// --- step 3: choose a method, then fill the form --------------------------------------------------
+function collectMethods(plat) {
+  const now = methodNow(plat), all = methodsOf(plat);
+  if (all.length < 2) return "";
+  const btn = (m, i) => {
+    const on = now && m[0] === now[0] && (m[1] || "") === (now[1] || "");
+    return `<button class="methodbtn${on ? " on" : ""}" data-act="cmethod" data-i="${i}" aria-pressed="${on}">${esc(trUI(m[2]))}</button>`;
+  };
+  return `<h2 class="srcsub">${esc(trUI("Choose a method"))}</h2>
+    <div class="methodrow" role="group" aria-label="${esc(trUI("Choose a method"))}">${all.map(btn).join("")}</div>`;
+}
+
 function collectForm() {
-  const cat = COLLECT_CATS.filter(c => c.key === COLLECT_CAT)[0];
+  const cat = catOf(COLLECT_CAT);
   if (!cat) return collectCats();
-  const back = `<div class="catbar"><button class="linkbtn" data-act="ccatback">‹ ${esc(trUI("All categories"))}</button>
-    <h3 class="srcsub">${esc(trUI(cat.label))}</h3></div>`;
-  if (!cat.src.length)
-    return back + `<p>${esc(trUI(cat.note))}</p>
+  if (!cat.plat.length)
+    return `<p>${esc(trUI(cat.note))}</p>
       <a class="btn wide" href="${MARSAD_PLATFORM}" target="_blank" rel="noopener">${esc(trUI("Open the MARSAD platform"))} ↗</a>`;
-  const src = cat.src.includes(COLLECT_SRC) ? COLLECT_SRC : cat.src[0];
-  const spec = LIVE[src];
+  if (!COLLECT_PLAT || !cat.plat.includes(COLLECT_PLAT)) return collectPlatforms(cat);
+
+  const plat = COLLECT_PLATFORMS[COLLECT_PLAT];
+  const m = methodNow(COLLECT_PLAT);
+  if (m && (m[0] !== COLLECT_SRC || (m[1] || "") !== (COLLECT_MODE || ""))) pickMethod(m);
+  const spec = LIVE[COLLECT_SRC];
+  if (!spec) return collectPlatforms(cat);
+  const mode = COLLECT_MODE;
   const opt = (v, l, on) => `<option value="${v}"${on ? " selected" : ""}>${esc(l)}</option>`;
-  const mode = spec.modes ? ((spec.modes.filter(m => m[0] === COLLECT_MODE)[0] || spec.modes[0])[0]) : "";
-  const modeRow = !spec.modes ? "" :
-    `<label class="cmode">${esc(trUI("What to collect"))}<select id="c-mode">${spec.modes.map(m => opt(m[0], trUI(m[1]), m[0] === mode)).join("")}</select></label>`;
-  const ph = (spec.modes ? (spec.modes.filter(m => m[0] === mode)[0] || [])[2] : "") ||
-             (spec.q && spec.q.ph) || "a word, a phrase or a hashtag";
+  const ph = (m && m[3]) || MODE_PH[mode] || (spec.q && spec.q.ph) || "a word, a phrase or a hashtag";
   const qlab = (spec.q && spec.q.label) || "Search for";
   const want = fieldsNow(spec, mode), extra = [];
   if (want.includes("lang"))
@@ -1734,45 +1864,53 @@ function collectForm() {
   if (want.includes("days"))
     extra.push(`<label>${esc(trUI("Days back"))}<select id="c-days">${opt("30", "30")}${opt("90", "90", true)}${opt("365", "365")}${opt("730", "730")}</select></label>`);
   if (want.includes("instance"))
-    extra.push(`<label>${esc(trUI("Server"))}<input id="c-inst" value="mastodon.social" spellcheck="false"></label>`);
+    extra.push(`<label>${esc(trUI("Server"))}<input id="c-inst" value="mastodon.social" spellcheck="false" dir="ltr"></label>`);
   if (want.includes("scope"))
     extra.push(`<label>${esc(trUI("Reach"))}<select id="c-scope">${opt("local", trUI("This server's own posts"), true)}${opt("all", trUI("Everything it sees"))}</select></label>`);
   if (want.includes("sub"))
-    extra.push(`<label>${esc(trUI("Subreddit"))}<input id="c-sub" placeholder="${esc(trUI("optional"))}" spellcheck="false"></label>`);
+    extra.push(`<label>${esc(trUI("Subreddit"))}<input id="c-sub" placeholder="${esc(trUI("optional"))}" spellcheck="false" dir="ltr"></label>`);
   if (want.includes("site"))
-    extra.push(`<label>${esc(trUI("Site"))}<input id="c-site" value="stackoverflow" spellcheck="false"></label>`);
+    extra.push(`<label>${esc(trUI("Site"))}<input id="c-site" value="stackoverflow" spellcheck="false" dir="ltr"></label>`);
   if (want.includes("sort"))
     extra.push(`<label>${esc(trUI("Order"))}<select id="c-sort">${opt("rel", trUI("Best match"), true)}${opt("new", trUI("Newest first"))}</select></label>`);
-  const saved = spec.key ? keyFor(src) : "";
+  const saved = spec.key ? keyFor(COLLECT_SRC) : "";
   const keyRow = !spec.key ? "" : `
     <div class="ckey">
       <label class="cq">${esc(trUI(spec.key.label))}
-        <input id="c-key" type="password" autocomplete="off" spellcheck="false" value="${esc(saved)}"
+        <input id="c-key" type="password" autocomplete="off" spellcheck="false" dir="ltr" value="${esc(saved)}"
                placeholder="${esc(trUI("paste your key"))}"></label>
       <div class="ckeyrow">
         <label class="cbox"><input type="checkbox" id="c-remember"${saved ? " checked" : ""}>
           <span>${esc(trUI("Remember it on this device"))}</span></label>
         <span class="ckeylinks"><a href="${spec.key.url}" target="_blank" rel="noopener">${esc(trUI("Where to get one"))} ↗</a>${saved ? ` <button class="linkbtn" data-act="forgetkeys">${esc(trUI("Forget saved keys"))}</button>` : ""}</span>
       </div>
-      <p class="small-print">${esc(trUI("The key is used for this search and nothing else. It never goes to MARSAD and is never written into the collected file."))}${spec.key.inUrl ? " " + esc(trUI("This provider wants the key in the web address, so it can appear in your browser history. Use a key you can revoke.")) : ""}</p>
     </div>`;
   const qRow = spec.noq ? "" :
     `<label class="cq">${esc(trUI(qlab))}<input id="c-q" placeholder="${esc(trUI(ph))}" spellcheck="false"></label>`;
-  return back + `
+  return `<div class="platbar">
+      <button class="linkbtn" data-act="cplatback">‹ ${esc(trUI("All platforms"))}</button>
+      <span class="platnow"><span class="platmark small" aria-hidden="true" style="background:${plat.tint[0]};color:${plat.tint[1]}">${esc(plat.mark)}</span>${esc(plat.name)}</span>
+    </div>
+    ${collectMethods(COLLECT_PLAT)}
     <div class="cform">
-      <label>${esc(trUI("Source"))}<select id="c-src">${cat.src.map(k => opt(k, trUI(LIVE[k].label), k === src)).join("")}</select></label>
-      ${modeRow}
       ${qRow}
       ${extra.join("")}
       <label>${esc(trUI("How many"))}<input id="c-n" type="number" min="1" max="500" value="50"></label>
     </div>
     ${keyRow}
-    <p class="small-print">${esc(trUI(spec.note))} <a href="#" data-act="collecthelp">${esc(trUI("What this source gives you"))} ›</a></p>
-    <p class="small-print">${esc(trUI("Licence recorded on every row:"))} <code>${esc(spec.rights)}</code>. ${esc(trUI("Collecting text is not permission to republish it."))}</p>
     <button class="btn primary wide" id="c-go" data-act="runcollect"${W ? "" : " disabled"}>${esc(trUI("Collect"))}</button>
     <div id="collectmsg"></div>
-    ${cat.note ? `<p class="small-print catnote">${esc(trUI(cat.note))}</p>` : ""}`;
+    <details class="srcmore"><summary>${esc(trUI("What this collects, and what you may do with it"))}</summary>
+      <p class="small-print">${esc(trUI(spec.note))} <a href="#" data-act="collecthelp">${esc(trUI("Read the full page on this source"))} ›</a></p>
+      <p class="small-print">${esc(trUI("Licence recorded on every row:"))} <code dir="ltr">${esc(spec.rights)}</code>. ${esc(trUI("Collecting text is not permission to republish it."))}</p>
+      <p class="small-print">${esc(trUI("Your search goes to this provider, and so does your key where one is needed. Nothing is sent to MARSAD, and your key is never written into the collected file."))}${spec.key && spec.key.inUrl ? " " + esc(trUI("This provider wants the key in the web address, so it can appear in your browser history. Use a key you can revoke.")) : ""}</p>
+      ${cat.note ? `<p class="small-print">${esc(trUI(cat.note))}</p>` : ""}
+    </details>`;
 }
+const MODE_PH = {search: "a word or a topic", article: "the exact article title",
+                 compare: "the title in the language above", revisions: "the exact article title",
+                 views: "the exact article title", talk: "the exact article title",
+                 links: "the exact article title"};
 
 function sourcesPanel(again) {
   const sel = SRC;
@@ -1786,15 +1924,29 @@ function sourcesPanel(again) {
       `<div class="srcdesc">${esc(trUI(o.detail))}</div></button>`;
   };
   const cards = [
-    {src: "own", icon: "file", label: "Upload your data", detail: "Analyse files from your computer"},
-    {src: "repository", icon: "society", badge: "soon", label: "MARSAD Data Repository", detail: "Explore 2,000+ internal datasets"},
-    {src: "collect", icon: "download", label: "Collect from a platform", detail: "Capture posts as you browse, with Zeeschuimer"},
-    {src: "licensed", icon: "report", label: "Licensed MARSAD datasets", detail: "Request access to MARSAD datasets"}
+    {src: "own", icon: "file", label: "Upload a dataset", detail: "Files from your computer"},
+    {src: "repository", icon: "society", badge: "soon", label: "Explore MARSAD Repository", detail: "Internal insights; available when launched"},
+    {src: "collect", icon: "download", label: "Collect online data", detail: "Search supported online platforms"},
+    {src: "licensed", icon: "report", label: "Request licensed datasets", detail: "View access and licence conditions"}
   ].map(card).join("");
   const sample = (f, label, name, tip) =>
     `<button class="btn small" data-act="sample" data-file="${f}"${name ? ` data-name="${name}"` : ""}${tip ? ` data-tip="${esc(tip)}"` : ""}>${esc(label)}</button>`;
+  // Collecting takes over the panel: the four entry cards collapse to a breadcrumb and a Back link,
+  // so the platform choice and its form get the room instead.
+  const inCollect = SRC === "collect" && COLLECT_CAT;
+  const cat = inCollect ? catOf(COLLECT_CAT) : null;
+  const trail = inCollect ? `<div class="catbar">
+      <button class="linkbtn" data-act="ccatback">\u2039 ${esc(trUI("Back"))}</button>
+      <nav class="crumb" aria-label="${esc(trUI("You are here"))}">
+        <button class="linkbtn" data-act="srcback">${esc(trUI("Overview"))}</button>
+        <span aria-hidden="true">/</span>
+        <button class="linkbtn" data-act="ccatback">${esc(trUI("Collect online data"))}</button>
+        <span aria-hidden="true">/</span>
+        <b>${esc(trUI(cat ? cat.label : ""))}</b>
+      </nav>
+    </div>` : "";
   return `<div class="panel">
-    <div class="srcgrid">${cards}</div>
+    ${inCollect ? trail : `<div class="srcgrid">${cards}</div>`}
     <div class="srcopen">${srcBody(again)}</div>
     <div class="srcsamples">
       <h2 class="srcsamples-h">${esc(trUI("Or try MARSAD with sample data"))}</h2>
@@ -1829,21 +1981,25 @@ function srcBody(again) {
     const step = (n, t) => `<li><b>${esc(trUI("Step"))} ${n}.</b> ${t}</li>`;
     const srcRow = ([name, need, state]) =>
       `<li><span class="colname">${esc(name)}</span><span class="colneed badge ${state}">${esc(trUI(need))}</span></li>`;
-    return head("download", "Collect from a platform") + `
-      <h3 class="srcsub">${esc(trUI("1. Collect it here"))}</h3>
+    const deep = !!COLLECT_CAT;
+    return (deep ? "" : head("download", "Collect online data")) + `
       ${collectForm()}
 
-      <h3 class="srcsub">${esc(trUI("2. Record what you browse, with Zeeschuimer"))}</h3>
-      <p>${esc(trUI("TikTok, Instagram and several others allow no search at all from a web page. Zeeschuimer, a free browser extension from the Digital Methods Initiative, records the posts you see while you browse, and MARSAD reads what it saves."))}</p>
-      <ol class="srcsteps">
-        ${step(1, `${esc(trUI("Install Zeeschuimer in Firefox from its releases page."))} <span class="small-print">${esc(trUI("Firefox-based browsers only. It does not work in Chrome, Edge or Safari."))}</span>`)}
-        ${step(2, esc(trUI("Click the Zeeschuimer button in the toolbar, switch it on for TikTok, then browse TikTok normally. Everything you scroll past is recorded.")))}
-        ${step(3, esc(trUI("Open the Zeeschuimer button again and export. Choose .ndjson (original), which keeps every field and works for every platform it supports.")))}
-        ${step(4, esc(trUI("Load that file on this page with Upload your data. MARSAD recognises the format, works out the platform and maps the text, date, account, likes, comments, shares, views and followers for you.")))}
-      </ol>
-      <a class="btn primary wide" href="${ZS_URL}" target="_blank" rel="noopener">${esc(trUI("Get Zeeschuimer"))} \u2197</a>
-      <p class="small-print">${esc(trUI("A Zeeschuimer file holds the posts you happened to see, in the order you saw them. It is a record of one browsing session, not a sample of the platform, so say so when you report findings from it."))}</p>
-      <p class="small-print">${esc(trUI("Besides TikTok posts and comments it supports Instagram, Threads, X, Weibo, RedNote, Douyin, Truth Social, Gab, Pinterest, Imgur and 9gag."))}</p>
+      ${deep ? "" : `<div class="zspanel">
+        <h3 class="srcsub">${esc(trUI("Or collect while you browse"))}</h3>
+        <p class="small-print">${esc(trUI("TikTok, Instagram, Threads and X allow no search at all from a web page. Zeeschuimer, a free Firefox extension from the Digital Methods Initiative, records the posts you see while you browse, and MARSAD reads what it saves."))}</p>
+        <details class="srcmore"><summary>${esc(trUI("How to use Zeeschuimer"))}</summary>
+          <ol class="srcsteps">
+            ${step(1, `${esc(trUI("Install Zeeschuimer in Firefox from its releases page."))} <span class="small-print">${esc(trUI("Firefox-based browsers only. It does not work in Chrome, Edge or Safari."))}</span>`)}
+            ${step(2, esc(trUI("Click the Zeeschuimer button in the toolbar, switch it on for the site, then browse normally. Everything you scroll past is recorded.")))}
+            ${step(3, esc(trUI("Open the Zeeschuimer button again and export. Choose .ndjson (original), which keeps every field and works for every platform it supports.")))}
+            ${step(4, esc(trUI("Load that file here with Upload a dataset. MARSAD recognises the format, works out the platform and maps the text, date, account, likes, comments, shares, views and followers for you.")))}
+          </ol>
+          <p class="small-print">${esc(trUI("Supported: TikTok posts and comments, Instagram, Threads, X, Weibo, RedNote, Douyin, Truth Social, Gab, Pinterest, Imgur and 9gag. What a capture holds is whatever the extension supports on the day you run it."))}</p>
+          <p class="small-print">${esc(trUI("A Zeeschuimer file holds the posts you happened to see, in the order you saw them. It is a record of one browsing session, not a sample of the platform, so say so when you report findings from it."))}</p>
+          <a class="btn wide" href="${ZS_URL}" target="_blank" rel="noopener">${esc(trUI("Get Zeeschuimer"))} \u2197</a>
+        </details>
+      </div>
 
       <details class="srcmore"><summary>${esc(trUI("Sources that need a key or an approval"))}</summary>
         <p class="small-print">${esc(trUI("These need a credential, so they cannot run in a web page: a key typed into one can be read by any script on it. They run in the MARSAD platform instead, which holds the keys on its server and saves you a dataset to load here. Your administrator decides which are switched on."))}</p>
@@ -1852,15 +2008,14 @@ function srcBody(again) {
           <div><h4>${esc(trUI("Social"))} <span class="small-print">(${SOCIAL_COLLECTORS.length})</span></h4><ul class="collist">${SOCIAL_COLLECTORS.map(srcRow).join("")}</ul></div>
         </div>
         <p class="small-print">${esc(trUI("The news routes collect metadata: the headline, the provider's own summary, the link, the outlet, the language and the time. They do not collect the article text, so word, topic and tone analyses describe how an item was billed rather than what it said. MARSAD says so above the numbers when it reads such a file."))}</p>
-        <p class="small-print">${esc(trUI("Facebook and Instagram reach only the Pages and professional accounts you have connected, not the platform at large. Meta Content Library is not available this way."))}</p>
         <a class="btn wide" href="${MARSAD_PLATFORM}" target="_blank" rel="noopener">${esc(trUI("Open the MARSAD platform"))} \u2197</a>
-      </details>`;
+      </details>`}`;
   }
   const o = {
-    repository: ["society", "MARSAD Data Repository",
+    repository: ["society", "Explore MARSAD Repository",
       "This will give you insights into the collection of more than 2,000 datasets MARSAD has gathered from Meltwater and CrowdTangle, without downloading any of them.",
       "It is not built here yet, and it will work differently from the rest of the tool: those analyses have to run on MARSAD servers, so you would get the findings back rather than the posts."],
-    licensed: ["report", "Licensed MARSAD datasets",
+    licensed: ["report", "Request licensed datasets",
       "MARSAD publishes datasets you can apply for. Once your request is granted you load your copy here like any other file.",
       ""]
   }[SRC];
@@ -1877,14 +2032,8 @@ function startPage() {
   ${PL && !again ? `<h2 class="section-heading">What you can explore</h2><div class="explore-grid">${exploreCards()}</div>` : ""}`;
 }
 function bindStart() {
-  const sel = $("#c-src");
-  if (sel) {
-    sel.onchange = () => { COLLECT_SRC = sel.value; COLLECT_MODE = ""; render(); };
-    const md = $("#c-mode");
-    if (md) md.onchange = () => { COLLECT_MODE = md.value; render(); };
-    const q = $("#c-q");
-    if (q) q.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); runCollect(); } };
-  }
+  const q = $("#c-q");
+  if (q) q.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); runCollect(); } };
   const d = $("#drop"); if (!d) return;
   d.onclick = () => $("#file").click(); d.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#file").click(); } };
   ["dragover", "dragenter"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("over"); }));

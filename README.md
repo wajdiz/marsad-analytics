@@ -20,22 +20,29 @@ Communalytic, Zeeschuimer and the common API dumps are recognised and mapped aut
 to rename a single column. A file it does not recognise is read generically and it tells you which columns it
 matched to what.
 
-**Collect in the page.** Seventeen sources, grouped into eight categories, called directly from your browser.
-Nothing is proxied through a server.
+**Collect in the page.** Thirteen platforms offering twenty-three collection methods, grouped into eight
+categories, called directly from your browser. Nothing is proxied through a server.
 
-| Category | What runs here |
+The path is the same every time: **category, then platform, then method, then form.** You see the platform names
+before you open anything, and a form only ever asks for the fields that method needs.
+
+| Category | Platforms |
 | --- | --- |
-| Social media | Bluesky search and one account, Mastodon by hashtag, by account and by server, Reddit, YouTube videos and comments |
-| News and media | GDELT, The Guardian |
-| Wikipedia and encyclopedias | Wikipedia in seven modes, Wikidata |
-| Websites, blogs and forums | Reddit, Hacker News, Stack Exchange |
-| Academic research | OpenAlex, Crossref |
-| Government and public documents | Nothing yet, and the page says so rather than offering a dead button |
-| Video, podcasts and transcripts | YouTube videos and comments |
-| Open data and public datasets | Hugging Face datasets |
+| Social Media | Bluesky, Mastodon, Reddit, YouTube |
+| News & Media | GDELT, The Guardian |
+| Wikipedia & Encyclopedias | Wikipedia (7 methods), Wikidata |
+| Websites, Blogs & Forums | Hacker News, Stack Exchange, Reddit |
+| Academic Research | OpenAlex, Crossref |
+| Government & Documents | None, and the page says so rather than offering a dead button |
+| Video & Podcasts | YouTube |
+| Open Data & Datasets | Hugging Face |
 
-Most need no key at all. YouTube and The Guardian take a free key of your own, which is used for that one search
-and is never written into the collected file.
+Reddit and YouTube each appear in two categories and are defined once, so there is no duplicated collector.
+
+Most platforms need no key. YouTube and The Guardian take a free key of your own, used for that one search and
+never written into the collected file. Each platform carries a badge saying what it asks of you: *no key
+needed*, *needs a key*, or *often refused*. None of them claims a provider is working today, because whether a
+provider accepts a call from a web page is settled only when you run it.
 
 **Record while you browse.** TikTok, Instagram, Threads and X allow no search from a web page. For those, the
 [Zeeschuimer](https://github.com/digitalmethodsinitiative/zeeschuimer) browser extension records what you scroll
