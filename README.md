@@ -1,3 +1,5 @@
+<img src="assets/marsad-logo-256.png" alt="MARSAD" width="88" align="right">
+
 # MARSAD Analytics
 
 A social media and text analysis dashboard that runs entirely in the browser. Load a file, or collect data
@@ -108,9 +110,10 @@ docs.json         the help centre content
 docs.html         a static copy of the help, for linking and search engines
 help.js
 help.css
+assets/           the logo, the mascot and the tab icons
 ```
 
-Replace those six in the repository and the site updates on the next Pages build. The rest of the repository
+Replace those in the repository and the site updates on the next Pages build. The rest of the repository
 (`pyodide/`, `plotly.min.js`, the sample files and the two large data bundles) only changes when the runtime or
 the word lists change.
 
