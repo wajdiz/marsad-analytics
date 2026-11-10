@@ -688,6 +688,10 @@ let COLLECT_SRC = "";
 let COLLECT_CAT = "";             // "" shows the eight categories rather than a platform
 let COLLECT_PLAT = "";            // the platform picked inside that category
 let COLLECT_MODE = "";            // which of a source's modes is picked, for the ones that have modes
+// Venue codes the Anthology uses for its XML files, offered as suggestions; any code can be typed.
+const ACL_VENUES = ["acl", "emnlp", "naacl", "eacl", "coling", "lrec", "lrec-coling", "arabicnlp",
+                    "findings", "wmt", "conll", "semeval", "tacl", "cl", "sigdial", "inlg", "iwslt",
+                    "acl-srw", "wanlp", "osact", "nlp4call", "alta", "ranlp", "aacl", "ijcnlp"];
 const WIKI_LANGS = [["ar", "العربية"], ["en", "English"], ["fr", "Français"], ["es", "Español"],
                     ["de", "Deutsch"], ["tr", "Türkçe"], ["fa", "فارسی"], ["ur", "اردو"],
                     ["he", "עברית"], ["ru", "Русский"], ["zh", "中文"], ["simple", "Simple English"]];
@@ -1178,6 +1182,16 @@ function forgetKeys() {
 }
 
 // --- small helpers the sources below share -------------------------------------------------------
+// Some providers answer in three-letter language codes. The file carries two-letter ones so that
+// a collected file sorts beside every other source without the reader having to translate.
+const ISO3 = {ara: "ar", eng: "en", fra: "fr", fre: "fr", spa: "es", deu: "de", ger: "de",
+              rus: "ru", zho: "zh", chi: "zh", tur: "tr", fas: "fa", per: "fa", urd: "ur",
+              heb: "he", por: "pt", ita: "it", nld: "nl", dut: "nl", hin: "hi", ind: "id",
+              jpn: "ja", kor: "ko", swe: "sv", pol: "pl", ukr: "uk"};
+const lang2 = (v) => {
+  const x = String(v || "").trim().toLowerCase();
+  return ISO3[x] || (x.length > 2 ? x.slice(0, 2) : x);
+};
 const epoch = (s) => { const n = Number(s); return isFinite(n) && n > 0 ? new Date(n * 1000).toISOString() : ""; };
 const wikiHost = (lang) => {
   const l = String(lang || "ar").trim().toLowerCase();
@@ -1588,6 +1602,252 @@ const LIVE = {
                    type: w.type || "", authors: who.length}});
       }));
     }},
+  doaj: {
+    label: "DOAJ", note: "Open access journal articles with their abstracts, every discipline. No key.",
+    rights: "CC0-1.0 (metadata); abstracts remain the publishers'", fields: [],
+    async run(q, o) {
+      // The query goes in the path, in Elasticsearch query-string syntax.
+      const d = await getJSON("https://doaj.org/api/search/articles/" + encodeURIComponent(q) +
+        "?pageSize=" + Math.min(o.limit, 100) + "&page=1");
+      return Promise.all((d.results || []).map(x => {
+        const b = x.bibjson || {}, j = b.journal || {};
+        const link = (b.link || []).filter(l => l.url)[0] || {};
+        const doi = (b.identifier || []).filter(i => (i.type || "").toLowerCase() === "doi")[0];
+        const who = (b.author || []).map(a => a.name).filter(Boolean);
+        return rec("doaj", link.url || (doi ? "https://doi.org/" + doi.id : "https://doaj.org/article/" + x.id),
+          {title: b.title, summary: b.abstract, source: j.title || "DOAJ",
+           published: b.year ? b.year + "-" + String(b.month || 1).padStart(2, "0") + "-01" : "",
+           language: String((j.language || [])[0] || "").toLowerCase(),   // DOAJ returns EN, not en
+           extra: {author: who.slice(0, 12).join("; "), authors: who.length, type: "article",
+                   year: b.year, publisher: j.publisher}});
+      }));
+    }},
+  zenodo: {
+    label: "Zenodo", note: "Datasets, preprints and software with their own licences. No key, 25 records a time.",
+    rights: "CC0-1.0 (metadata); each record's files carry their own licence", fields: ["ztype"],
+    async run(q, o) {
+      // Anonymous callers are capped at 25 records a page, and a key may not be put in a public page.
+      const kind = {"": "", publication: "&type=publication", dataset: "&type=dataset",
+                    software: "&type=software"}[o.ztype] || "";
+      const d = await getJSON("https://zenodo.org/api/records?q=" + encodeURIComponent(q) +
+        "&size=" + Math.min(o.limit, 25) + "&page=1&sort=bestmatch" + kind);
+      const hits = ((d.hits || {}).hits) || [];
+      return Promise.all(hits.map(x => {
+        const m = x.metadata || {};
+        const who = (m.creators || []).map(c => c.name).filter(Boolean);
+        const lic = (m.license && (m.license.id || m.license)) || "";
+        return rec("zenodo", x.doi_url || (x.links || {}).self_html || ("https://zenodo.org/records/" + x.id),
+          {title: m.title, summary: stripTags(m.description || ""), published: m.publication_date,
+           source: m.resource_type && (m.resource_type.title || m.resource_type.type) || "Zenodo",
+           language: lang2(m.language),
+           rights: lic ? "record licence: " + lic : "licence not stated on the record",
+           extra: {author: who.slice(0, 12).join("; "), authors: who.length,
+                   type: (m.resource_type || {}).type || "record",
+                   views: ((x.stats || {}).downloads)}});
+      }));
+    }},
+  semanticscholar: {
+    label: "Semantic Scholar", note: "Papers with abstracts and citation counts, every field. No key, and a shared rate limit.",
+    rights: "Semantic Scholar metadata; credit Semantic Scholar", fields: [],
+    async run(q, o) {
+      // Called without a key on purpose: their licence forbids disclosing an API key to anyone,
+      // which a key pasted into a public page does by definition.
+      const d = await getJSON("https://api.semanticscholar.org/graph/v1/paper/search?query=" +
+        encodeURIComponent(q) + "&limit=" + Math.min(o.limit, 100) +
+        "&fields=title,abstract,year,venue,publicationDate,authors,externalIds,citationCount,openAccessPdf");
+      if (d.error || d.message) throw new Err(trUI("The source answered with an error") + ": " + (d.error || d.message));
+      return Promise.all((d.data || []).map(x => {
+        const who = (x.authors || []).map(a => a.name).filter(Boolean);
+        const ids = x.externalIds || {};
+        return rec("semanticscholar", ids.DOI ? "https://doi.org/" + ids.DOI
+          : "https://www.semanticscholar.org/paper/" + x.paperId,
+          {title: x.title, summary: x.abstract || "", published: x.publicationDate || (x.year ? x.year + "-01-01" : ""),
+           source: x.venue || "Semantic Scholar", language: "",
+           extra: {author: who.slice(0, 12).join("; "), authors: who.length, likes: x.citationCount,
+                   type: "paper", year: x.year, acl: ids.ACL, arxiv: ids.ArXiv,
+                   open: !!x.openAccessPdf}});
+      }));
+    }},
+  openlibrary: {
+    label: "Open Library", note: "Book records: titles, authors, subjects and editions. No key.",
+    rights: "Open Library metadata; no formal licence statement, treat as attribution-only", fields: [],
+    async run(q, o) {
+      const d = await getJSON("https://openlibrary.org/search.json?q=" + encodeURIComponent(q) +
+        "&limit=" + Math.min(o.limit, 100) +
+        "&fields=key,title,author_name,first_publish_year,subject,language,edition_count");
+      return Promise.all((d.docs || []).map(x => rec("openlibrary", "https://openlibrary.org" + x.key,
+        {title: x.title, summary: (x.subject || []).slice(0, 14).join(", "),
+         published: x.first_publish_year ? x.first_publish_year + "-01-01" : "",
+         source: "Open Library", language: lang2((x.language || [])[0]),
+         extra: {author: (x.author_name || []).slice(0, 8).join("; "), type: "book",
+                 year: x.first_publish_year, editions: x.edition_count}})));
+    }},
+  pubmed: {
+    label: "PubMed", note: "Biomedical citations: title, journal and date, no abstract. No key needed. Not tested from a browser.",
+    rights: "metadata_only; credit 'Courtesy of the U.S. National Library of Medicine'", fields: [],
+    async run(q, o) {
+      const n = Math.min(o.limit, 200);
+      const base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/";
+      const found = await getJSON(base + "esearch.fcgi?db=pubmed&retmode=json&sort=relevance&retmax=" + n +
+        "&term=" + encodeURIComponent(q));
+      const ids = ((found.esearchresult || {}).idlist) || [];
+      if (!ids.length) return [];
+      const sum = await getJSON(base + "esummary.fcgi?db=pubmed&retmode=json&id=" + ids.join(","));
+      const r = sum.result || {};
+      return Promise.all(ids.map(id => r[id]).filter(Boolean).map(x => {
+        const who = (x.authors || []).map(a => a.name).filter(Boolean);
+        return rec("pubmed", "https://pubmed.ncbi.nlm.nih.gov/" + x.uid + "/",
+          {title: x.title, summary: "", published: x.sortpubdate || x.pubdate || "",
+           source: x.fulljournalname || x.source || "PubMed", language: lang2((x.lang || [])[0]),
+           extra: {author: who.slice(0, 12).join("; "), authors: who.length, type: "citation",
+                   doi: x.elocationid, pmid: x.uid}});
+      }));
+    }},
+  eventregistry: {
+    label: "Event Registry", note: "News in many languages with a short excerpt. Free key, 2,000 searches.",
+    rights: "metadata_only_check_provider_terms; the provider forbids republishing full text",
+    fields: ["lang"],
+    key: {label: "Event Registry API key", where: "newsapi.ai, free registration",
+          url: "https://www.newsapi.ai/register", inUrl: true},
+    async run(q, o) {
+      // articleBodyLen keeps this to an excerpt: their terms forbid republishing the full body.
+      const lang = {ar: "&lang=ara", en: "&lang=eng"}[o.lang] || "";
+      const d = await getJSON("https://eventregistry.org/api/v1/article/getArticles?resultType=articles" +
+        "&articlesSortBy=date&articleBodyLen=300&articlesCount=" + Math.min(o.limit, 100) + lang +
+        "&keyword=" + encodeURIComponent(q) + "&apiKey=" + encodeURIComponent(o.key));
+      if (d.error) throw new Err(trUI("The source answered with an error") + ": " + d.error);
+      const rows = (((d.articles || {}).results) || []);
+      return Promise.all(rows.map(x => rec("eventregistry", x.url,
+        {title: x.title, summary: String(x.body || "").slice(0, 300), published: x.dateTimePub || x.date,
+         source: (x.source || {}).title || "", language: lang2(x.lang),
+         extra: {author: ((x.authors || [])[0] || {}).name, type: "article", sentiment: x.sentiment}})));
+    }},
+  newsapi: {
+    label: "NewsAPI.org", note: "Headlines and descriptions. The free plan refuses browsers, so this needs a paid plan.",
+    rights: "metadata_only_check_provider_terms", fields: ["lang"],
+    key: {label: "NewsAPI.org key", where: "newsapi.org", url: "https://newsapi.org/register", inUrl: true},
+    async run(q, o) {
+      const lang = o.lang ? "&language=" + o.lang : "";
+      const d = await getJSON("https://newsapi.org/v2/everything?pageSize=" + Math.min(o.limit, 100) +
+        "&sortBy=publishedAt" + lang + "&q=" + encodeURIComponent(q) + "&apiKey=" + encodeURIComponent(o.key));
+      if (d.status === "error") throw new Err(d.code === "corsNotAllowed" || /426/.test(String(d.code))
+        ? trUI("NewsAPI.org blocks browsers on the free plan. This one needs a paid plan or a server.")
+        : trUI("The source answered with an error") + ": " + (d.message || d.code));
+      return Promise.all((d.articles || []).map(x => rec("newsapi", x.url,
+        {title: x.title, summary: x.description || "", published: x.publishedAt,
+         source: (x.source || {}).name || "", language: o.lang || "",
+         extra: {author: x.author, type: "article"}})));
+    }},
+  gnews: {
+    label: "GNews", note: "Headlines and a short description. The free plan refuses browsers, so this needs a paid plan.",
+    rights: "metadata_only_check_provider_terms", fields: ["lang"],
+    key: {label: "GNews API key", where: "gnews.io", url: "https://gnews.io/register", inUrl: true},
+    async run(q, o) {
+      const lang = o.lang ? "&lang=" + o.lang : "";
+      const d = await getJSON("https://gnews.io/api/v4/search?max=" + Math.min(o.limit, 100) +
+        "&sortby=publishedAt" + lang + "&q=" + encodeURIComponent(q) + "&apikey=" + encodeURIComponent(o.key));
+      if (d.errors) throw new Err(trUI("The source answered with an error") + ": " + [].concat(d.errors).join("; "));
+      return Promise.all((d.articles || []).map(x => rec("gnews", x.url,
+        {title: x.title, summary: x.description || "", published: x.publishedAt,
+         source: (x.source || {}).name || "", language: o.lang || "",
+         extra: {type: "article"}})));
+    }},
+  currents: {
+    label: "Currents", note: "News headlines with a short description. Free key. Not tested from a browser.",
+    rights: "metadata_only_check_provider_terms; the provider requires attribution", fields: ["lang"],
+    key: {label: "Currents API key", where: "currentsapi.services",
+          url: "https://currentsapi.services/en/register", inUrl: true},
+    async run(q, o) {
+      const lang = o.lang ? "&language=" + o.lang : "";
+      const d = await getJSON("https://api.currentsapi.services/v1/search?page_size=" + Math.min(o.limit, 200) +
+        lang + "&keywords=" + encodeURIComponent(q) + "&apiKey=" + encodeURIComponent(o.key));
+      if (d.status && d.status !== "ok") throw new Err(trUI("The source answered with an error") + ": " + (d.message || d.status));
+      return Promise.all((d.news || []).map(x => rec("currents", x.url,
+        {title: x.title, summary: x.description || "", published: x.published,
+         source: (x.author || "") || "Currents", language: x.language || o.lang || "",
+         extra: {author: x.author, type: "article", category: (x.category || []).join(" ")}})));
+    }},
+  nyt: {
+    label: "New York Times", note: "Headline, abstract and lead paragraph from the Times archive. Free key. Not tested from a browser.",
+    rights: "metadata_only_check_provider_terms", fields: [],
+    key: {label: "NYT API key", where: "developer.nytimes.com",
+          url: "https://developer.nytimes.com/get-started", inUrl: true},
+    async run(q, o) {
+      // The Times returns ten results a page and stops at page ten, so this pages up to the limit.
+      const want = Math.min(o.limit, 100), out = [];
+      for (let page = 0; page < 10 && out.length < want; page++) {
+        const d = await getJSON("https://api.nytimes.com/svc/search/v2/articlesearch.json?sort=newest&page=" +
+          page + "&q=" + encodeURIComponent(q) + "&api-key=" + encodeURIComponent(o.key));
+        if (d.fault || d.errors) throw new Err(trUI("The source answered with an error") + ": " +
+          ((d.fault || {}).faultstring || [].concat(d.errors).join("; ")));
+        const docs = (((d.response || {}).docs) || []);
+        out.push(...docs);
+        if (docs.length < 10) break;
+      }
+      return Promise.all(out.slice(0, want).map(x => rec("nyt", x.web_url,
+        {title: (x.headline || {}).main || "", summary: [x.abstract, x.lead_paragraph].filter(Boolean).join(" "),
+         published: x.pub_date, source: "The New York Times", language: "en",
+         extra: {author: ((x.byline || {}).original || "").replace(/^By /, ""), type: x.type_of_material,
+                 section: x.section_name, words: x.word_count}})));
+    }},
+  aclanthology: {
+    label: "ACL Anthology", note: "A whole venue and year from the Anthology's own metadata, abstracts included. No key.",
+    rights: "ACL Anthology metadata; each paper carries its own licence, usually CC BY 4.0",
+    fields: ["venue", "year"], optq: true,
+    q: {label: "Keep only papers mentioning", ph: "leave empty for the whole volume"},
+    short: (q, o) => (o.venue || "") + "-" + (o.year || ""),
+    async run(q, o) {
+      // The Anthology publishes one XML file per venue and year in its public repository, and
+      // raw.githubusercontent.com allows a cross-origin read, so the whole volume can be fetched
+      // and parsed here. There is no search endpoint to call, which is why the filtering is local.
+      const venue = String(o.venue || "").trim().toLowerCase().replace(/^20\d\d\./, "");
+      const year = String(o.year || "").trim();
+      if (!/^[a-z0-9-]+$/.test(venue)) throw new Err(trUI("That does not look like a venue code. Use acl, emnlp, arabicnlp and the like."));
+      const file = /^(19|20)\d\d$/.test(year) ? year + "." + venue : venue;
+      let text;
+      try {
+        text = await getText("https://raw.githubusercontent.com/acl-org/acl-anthology/master/data/xml/" +
+          encodeURIComponent(file) + ".xml");
+      } catch (e) {
+        // A 404 here means the volume does not exist, which is a thing the person can fix.
+        if (e && e.plain && /404/.test(e.message))
+          throw new Err(trUI("No volume with that venue and year. Check the venue code, and note that years before 2020 use the old codes such as P19."));
+        throw e;
+      }
+      const doc = new DOMParser().parseFromString(text, "application/xml");
+      if (doc.querySelector("parsererror") || !doc.querySelector("collection"))
+        throw new Err(trUI("No volume with that venue and year. Check the venue code, and note that years before 2020 use the old codes such as P19."));
+      const cid = doc.querySelector("collection").getAttribute("id") || file;
+      const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+      const out = [];
+      for (const vol of doc.querySelectorAll("volume")) {
+        const vid = vol.getAttribute("id") || "1";
+        const book = (vol.querySelector("meta > booktitle") || {}).textContent || cid;
+        for (const paper of vol.querySelectorAll("paper")) {
+          const grab = (t) => { const e = paper.querySelector(":scope > " + t); return e ? e.textContent.trim() : ""; };
+          const title = grab("title"), abstract = grab("abstract");
+          const hay = (title + " " + abstract).toLowerCase();
+          if (words.length && !words.every(w => hay.includes(w))) continue;
+          const who = [...paper.querySelectorAll(":scope > author")].map(a => {
+            const bit = (t) => { const e = a.querySelector(t); return e ? e.textContent.trim() : ""; };
+            return [bit("first"), bit("last")].filter(Boolean).join(" ");
+          }).filter(Boolean);
+          out.push({title, abstract, book, who, pages: grab("pages"), doi: grab("doi"),
+                    bibkey: grab("bibkey"),
+                    url: "https://aclanthology.org/" + cid + "-" + vid + "." + paper.getAttribute("id") + "/"});
+          if (out.length >= o.limit) break;
+        }
+        if (out.length >= o.limit) break;
+      }
+      if (!out.length) throw new Err(words.length
+        ? trUI("That volume has no paper mentioning all of those words.")
+        : trUI("That volume holds no papers."));
+      const when = /^(19|20)\d\d$/.test(year) ? year + "-01-01" : "";
+      return Promise.all(out.map(x => rec("aclanthology", x.url,
+        {title: x.title, summary: x.abstract, published: when, source: x.book, language: "en",
+         extra: {author: x.who.join("; "), authors: x.who.length, type: "paper",
+                 pages: x.pages, doi: x.doi, bibkey: x.bibkey, venue: venue, year: year}})));
+    }},
   huggingface: {
     label: "Hugging Face datasets", note: "Public datasets with their own licence recorded on each row. No key.",
     rights: "see each row", fields: [],
@@ -1609,6 +1869,17 @@ const LIVE = {
 
 function Err(msg) { this.message = msg; this.plain = true; }
 Err.prototype = Object.create(Error.prototype);
+
+async function getText(url) {
+  let r;
+  try {
+    r = await fetch(url);
+  } catch (e) {
+    throw new Err(trUI("This source does not allow a web page to call it directly, so the browser refused the request. Collect it on the MARSAD platform instead."));
+  }
+  if (!r.ok) throw new Err(trUI("The source answered with an error") + " (" + r.status + ").");
+  return await r.text();
+}
 
 async function getJSON(url) {
   let r;
@@ -1676,13 +1947,47 @@ const COLLECT_PLATFORMS = {
              methods: [["openalex", "", "Search papers"]]},
   crossref: {name: "Crossref", mark: "CR", tint: ["#3EB1C8", "#111418"], blurb: "Publisher records", need: "open",
              methods: [["crossref", "", "Search records"]]},
+  aclanthology: {name: "ACL Anthology", mark: "ACL", tint: ["#D51920", "#FFFFFF"],
+                 blurb: "Computational linguistics papers", need: "open",
+                 methods: [["aclanthology", "", "A venue and year"]]},
+  semanticscholar: {name: "Semantic Scholar", mark: "S2", tint: ["#1857B6", "#FFFFFF"],
+                    blurb: "Papers, abstracts, citations", need: "open",
+                    methods: [["semanticscholar", "", "Search papers"]]},
+  doaj: {name: "DOAJ", mark: "DJ", tint: ["#B5121B", "#FFFFFF"],
+         blurb: "Open access journal articles", need: "open",
+         methods: [["doaj", "", "Search articles"]]},
+  pubmed: {name: "PubMed", mark: "PM", tint: ["#20558A", "#FFFFFF"],
+           blurb: "Biomedical citations", need: "untested",
+           methods: [["pubmed", "", "Search citations"]]},
+  zenodo: {name: "Zenodo", mark: "ZN", tint: ["#1375BE", "#FFFFFF"],
+           blurb: "Datasets, preprints, software", need: "open",
+           methods: [["zenodo", "", "Search records"]]},
+  openlibrary: {name: "Open Library", mark: "OL", tint: ["#E1DCC5", "#111418"],
+                blurb: "Book records and subjects", need: "open",
+                methods: [["openlibrary", "", "Search books"]]},
+  eventregistry: {name: "Event Registry", mark: "ER", tint: ["#2D6CDF", "#FFFFFF"],
+                  blurb: "Multilingual news index", need: "key",
+                  methods: [["eventregistry", "", "Search news"]]},
+  newsapi: {name: "NewsAPI.org", mark: "NA", tint: ["#C8102E", "#FFFFFF"],
+            blurb: "Headlines and descriptions", need: "paid",
+            methods: [["newsapi", "", "Search articles"]]},
+  gnews: {name: "GNews", mark: "GN", tint: ["#1A73E8", "#FFFFFF"],
+          blurb: "Headlines and descriptions", need: "paid",
+          methods: [["gnews", "", "Search articles"]]},
+  currents: {name: "Currents", mark: "CU", tint: ["#0B6E4F", "#FFFFFF"],
+             blurb: "News headlines", need: "untested",
+             methods: [["currents", "", "Search news"]]},
+  nyt: {name: "New York Times", mark: "NYT", tint: ["#111418", "#FFFFFF"],
+        blurb: "One newspaper's archive", need: "untested",
+        methods: [["nyt", "", "Search the archive"]]},
   huggingface: {name: "Hugging Face", mark: "HF", tint: ["#FFD21E", "#111418"], blurb: "Public datasets", need: "open",
                 methods: [["huggingface", "", "Search datasets"]]}
 };
 // What each badge claims, and nothing more. None of these says a provider is known to be working:
 // whether it accepts a call from a web page is only settled when you run it.
 const NEED = {open: ["ready", "No key"], key: ["key", "Needs a key"],
-              patchy: ["approval", "Often refused"]};
+              patchy: ["approval", "Often refused"], paid: ["approval", "Paid plan only"],
+              untested: ["approval", "Untested here"]};
 
 const COLLECT_CATS = [
   {key: "social", icon: "people", label: "Social Media",
@@ -1691,8 +1996,8 @@ const COLLECT_CATS = [
    note: "TikTok, Instagram, Threads and X allow no search from a web page at all. Record those while you browse, with Zeeschuimer."},
   {key: "news", icon: "report", label: "News & Media",
    detail: "Headlines, outlets, coverage and framing",
-   plat: ["gdelt", "guardian"],
-   note: "Both collect the headline and the provider's summary, not the article text. The paid news APIs keep their keys on a server, so they run on the MARSAD platform instead."},
+   plat: ["gdelt", "guardian", "eventregistry", "nyt", "currents", "newsapi", "gnews"],
+   note: "These collect the headline and the provider's summary, not the article text. NewsAPI.org and GNews refuse browsers on their free plans, so those two need a paid plan or the MARSAD platform."},
   {key: "wiki", icon: "topics", label: "Wikipedia & Encyclopedias",
    detail: "Article text, revisions, talk pages, readership",
    plat: ["wikipedia", "wikidata"],
@@ -1703,8 +2008,8 @@ const COLLECT_CATS = [
    note: "Reading an arbitrary web page or blog needs a server to fetch it, because a page cannot fetch another site that has not allowed it. That one belongs on the MARSAD platform."},
   {key: "academic", icon: "spread", label: "Academic Research",
    detail: "Papers, abstracts, venues and citations",
-   plat: ["openalex", "crossref"],
-   note: "For ACL Anthology specifically, the package ships a command-line collector that searches the whole Anthology offline."},
+   plat: ["openalex", "crossref", "aclanthology", "semanticscholar", "doaj", "zenodo", "pubmed"],
+   note: "The ACL Anthology publishes no search endpoint, so this reads one venue and year of its published metadata and filters it here. To search the whole Anthology at once, the package ships a command-line collector that works offline."},
   {key: "gov", icon: "society", label: "Government & Documents",
    detail: "Legislation, debates, reports, official statements",
    plat: [],
@@ -1715,7 +2020,7 @@ const COLLECT_CATS = [
    note: "Transcripts are not available through any public API. Download the captions from the platform itself, or transcribe the audio, then load the text here."},
   {key: "data", icon: "all", label: "Open Data & Datasets",
    detail: "Datasets, their licences and how they are used",
-   plat: ["huggingface"],
+   plat: ["huggingface", "zenodo", "openlibrary"],
    note: "Kaggle, Data.gov and the World Bank need either a key or a server, so they are collected on the MARSAD platform."}
 ];
 
@@ -1745,12 +2050,13 @@ async function runCollect() {
   const spec = LIVE[COLLECT_SRC];
   if (!spec) return;
   const q = (($("#c-q") || {}).value || "").trim();
-  if (!q && !spec.noq) { collectMsg(esc(trUI("Type what to search for first.")), "bad"); return; }
+  if (!q && !spec.noq && !spec.optq) { collectMsg(esc(trUI("Type what to search for first.")), "bad"); return; }
   const val = (id) => (($("#" + id) || {}).value || "");
   const opts = {limit: Math.max(1, Math.min(500, parseInt(val("c-n"), 10) || 50)),
                 mode: COLLECT_MODE, lang: val("c-lang"), instance: val("c-inst"),
                 scope: val("c-scope"), wikilang: val("c-wlang"), langs: val("c-langs"),
                 sub: val("c-sub"), site: val("c-site"), sort: val("c-sort"), days: val("c-days"),
+                venue: val("c-venue"), year: val("c-year"), ztype: val("c-ztype"),
                 key: val("c-key").trim()};
   if (spec.key) {
     if (!opts.key) { collectMsg(esc(trUI("This source needs a key. Paste yours above.")), "bad"); return; }
@@ -1869,6 +2175,13 @@ function collectForm() {
     extra.push(`<label>${esc(trUI("Reach"))}<select id="c-scope">${opt("local", trUI("This server's own posts"), true)}${opt("all", trUI("Everything it sees"))}</select></label>`);
   if (want.includes("sub"))
     extra.push(`<label>${esc(trUI("Subreddit"))}<input id="c-sub" placeholder="${esc(trUI("optional"))}" spellcheck="false" dir="ltr"></label>`);
+  if (want.includes("ztype"))
+    extra.push(`<label>${esc(trUI("Record type"))}<select id="c-ztype">${opt("", trUI("Any"), true)}${opt("publication", trUI("Publications"))}${opt("dataset", trUI("Datasets"))}${opt("software", trUI("Software"))}</select></label>`);
+  if (want.includes("venue"))
+    extra.push(`<label>${esc(trUI("Venue code"))}<input id="c-venue" value="arabicnlp" list="acl-venues" spellcheck="false" dir="ltr">
+      <datalist id="acl-venues">${ACL_VENUES.map(v => `<option value="${v}">`).join("")}</datalist></label>`);
+  if (want.includes("year"))
+    extra.push(`<label>${esc(trUI("Year"))}<input id="c-year" type="number" min="1965" max="2030" value="${new Date().getFullYear()}"></label>`);
   if (want.includes("site"))
     extra.push(`<label>${esc(trUI("Site"))}<input id="c-site" value="stackoverflow" spellcheck="false" dir="ltr"></label>`);
   if (want.includes("sort"))
