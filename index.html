@@ -228,6 +228,8 @@ html[data-theme="dark"] .platmark{box-shadow:inset 0 0 0 1px rgba(255,255,255,.2
 .statekey{margin:6px 0 8px;padding-inline-start:0;list-style:none;display:grid;gap:6px}
 .statekey li{font-size:12px;line-height:1.5;color:var(--k-blu-35-20)}
 .srcdetail h2.srcsub{margin-top:14px}
+.srchelp{margin-inline-start:auto}
+.platbar{flex-wrap:wrap;gap:8px}
 .srcdetail p{margin:4px 0 8px;font-size:13px;line-height:1.5}
 .platbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
 .platnow{display:flex;align-items:center;gap:7px;font-weight:650;color:var(--ink)}
@@ -917,7 +919,13 @@ document.addEventListener("focusout", hideTip);
 window.addEventListener("scroll", hideTip, true);
 
 // ------------------------------------------------------------------ navigation
-function go(v) { view = v; hideTip(); if (v.page === "card" && v.id) noteRecent(v.id); try { localStorage.setItem("marsad_last", JSON.stringify(v)); } catch (e) {} render(); window.scrollTo({top: 0}); try { history.replaceState(null, "", "#" + (v.page === "card" ? "c-" + v.id : v.page === "section" ? "s-" + v.section : v.page === "study" ? "q-" + v.id : v.page === "help" ? MarsadHelp.hashFor(v.route || {view: "home"}) : v.page)); } catch (e) {} }
+function go(v) {
+  // Overview was a dead click from inside the collect flow: the page re-rendered into whatever
+  // source was still selected, so nothing on screen changed. Leaving the flow clears it.
+  if (v.page === "overview" && (COLLECT_CAT || COLLECT_PLAT || COLLECT_Q)) {
+    COLLECT_CAT = ""; COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; COLLECT_Q = "";
+  }
+  view = v; hideTip(); if (v.page === "card" && v.id) noteRecent(v.id); try { localStorage.setItem("marsad_last", JSON.stringify(v)); } catch (e) {} render(); window.scrollTo({top: 0}); try { history.replaceState(null, "", "#" + (v.page === "card" ? "c-" + v.id : v.page === "section" ? "s-" + v.section : v.page === "study" ? "q-" + v.id : v.page === "help" ? MarsadHelp.hashFor(v.route || {view: "home"}) : v.page)); } catch (e) {} }
 const helpRoute = k => ({page: "help", route: MarsadHelp.routeFromHash(k)});
 function fromHash() {
   const h = location.hash.slice(1);
@@ -1101,6 +1109,10 @@ function act(name, el) {
   if (name === "load") loadData();
   if (name === "sample") loadSample(el.dataset.file, el.dataset.name);
   if (name === "runcollect") runCollect();
+  // Every step inside the collect flow replaces the panel without moving the viewport, so the new
+  // screen opened half way down. These steps put it back at the top; typing in the search does not.
+  const toTop = () => { try { window.scrollTo({top: 0, behavior: "instant"}); } catch (e) { window.scrollTo(0, 0); } };
+  if (["ccat", "ccatback", "cplat", "cplatback", "ctab", "cmethod"].includes(name)) setTimeout(toTop, 0);
   if (name === "ccat") {
     COLLECT_CAT = el.dataset.cat;
     COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; COLLECT_Q = "";
@@ -1121,7 +1133,12 @@ function act(name, el) {
     pickMethod(methodsOf(COLLECT_PLAT)[0]);
     render();
   }
-  if (name === "cplatback") { COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; render(); }
+  if (name === "cplatback") {
+    // The search that found this source is cleared too. Leaving it in place meant going back from
+    // TikTok showed a list holding only TikTok, with no obvious way to reach anything else.
+    COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; COLLECT_Q = "";
+    render();
+  }
   if (name === "srcback") {
     SRC = "own"; COLLECT_CAT = ""; COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = "";
     render();
@@ -2418,32 +2435,31 @@ function collectDirectory(cat) {
 // A source with no collector yet. Everything known about getting at it, and no button that lies.
 function collectDetail(key) {
   const s = srcOf(key), st = stateOf(key);
-  const docs = s.docs ? `<a href="${s.docs}" target="_blank" rel="noopener">${esc(trUI("Provider documentation"))} ↗</a>` : "";
+  // What this source holds, asks for and permits now lives in its help page, so every source reads
+  // the same way whether or not a collector has been built for it.
   const platform = s.state === "unavailable" ? "" :
-    `<p class="small-print">${esc(trUI("Collection for this one belongs on the MARSAD platform, where a server can make the request and hold the credentials."))}
-       <a href="${MARSAD_PLATFORM}" target="_blank" rel="noopener">${esc(trUI("Open the MARSAD platform"))} ↗</a></p>`;
+    `<a class="btn wide" href="${MARSAD_PLATFORM}" target="_blank" rel="noopener">${esc(trUI("Open the MARSAD platform"))} \u2197</a>`;
   return `${srcBar(key)}
     <div class="srcdetail">
-      <h2 class="srcsub">${esc(trUI("What it holds"))}</h2>
-      <p>${esc(trUI(s.value))}</p>
-      <h2 class="srcsub">${esc(trUI("What it asks of you"))}</h2>
-      <p><span class="badge key">${esc(trUI(accessOf(key)))}</span>${s.server
-        ? ` <span class="badge key">${esc(trUI(proxyUrl() ? "Via your server" : "Needs your server"))}</span>` : ""}</p>
-      <p>${esc(trUI(s.note))}</p>
-      <h2 class="srcsub">${esc(trUI("Where the collector stands"))}</h2>
-      <p><span class="badge ${STATE_CLS[s.state]}">${esc(trUI(st[0]))}</span></p>
-      <p>${esc(trUI(st[1]))}</p>
+      <p><span class="badge ${STATE_CLS[s.state]}">${esc(trUI(st[0]))}</span> ${esc(trUI(st[1]))}</p>
       ${platform}
-      <p class="small-print">${docs}</p>
     </div>`;
 }
 
 function srcBar(key) {
   const s = srcOf(key);
   return `<div class="platbar">
-    <button class="linkbtn" data-act="cplatback">‹ ${esc(trUI("All sources"))}</button>
+    <button class="linkbtn" data-act="cplatback">\u2039 ${esc(trUI("Choose another source"))}</button>
     <span class="platnow"><span class="platmark small" aria-hidden="true" style="background:${s.tint[0]};color:${s.tint[1]}">${esc(s.mark)}</span>${esc(trUI(s.name))}</span>
+    ${srcHelpBtn(key)}
   </div>`;
+}
+
+// One help page per source, in the same place on every source, so what it needs and what you may do
+// with the result is read in one place rather than guessed from the form.
+function srcHelpBtn(key) {
+  if (!MarsadHelp.ready()) return "";
+  return `<button class="btn small srchelp" data-go="help/a/collector-${key}">${esc(trUI("How this collector works"))}</button>`;
 }
 
 // --- step 3: choose a method, then fill the form --------------------------------------------------
@@ -2529,7 +2545,7 @@ function collectForm() {
       <p class="small-print">${esc(trUI("Licence recorded on every row:"))} <code dir="ltr">${esc(spec.rights)}</code>. ${esc(trUI("Collecting text is not permission to republish it."))}</p>
       <p class="small-print">${esc(trUI("Your search goes to this provider, and so does your key where one is needed. Nothing is sent to MARSAD, and your key is never written into the collected file."))}${spec.key && spec.key.inUrl ? " " + esc(trUI("This provider wants the key in the web address, so it can appear in your browser history. Use a key you can revoke.")) : ""}</p>
       <p class="small-print"><span class="badge ${STATE_CLS[plat.state]}">${esc(trUI(stateOf(COLLECT_PLAT)[0]))}</span> ${esc(trUI(stateOf(COLLECT_PLAT)[1]))}</p>
-      ${plat.docs ? `<p class="small-print"><a href="${plat.docs}" target="_blank" rel="noopener">${esc(trUI("Provider documentation"))} ↗</a></p>` : ""}
+      <p class="small-print">${esc(trUI("The help page for this source lists what each method returns, what it asks of you, and what you may do with the result."))}</p>
     </details>`;
 }
 const MODE_PH = {search: "a word or a topic", article: "the exact article title",
@@ -2641,8 +2657,8 @@ function srcBody(again) {
   }
   const o = {
     repository: ["society", "Explore MARSAD Repository",
-      "This will give you insights into the collection of more than 2,000 datasets MARSAD has gathered from Meltwater and CrowdTangle, without downloading any of them.",
-      "It is not built here yet, and it will work differently from the rest of the tool: those analyses have to run on MARSAD servers, so you would get the findings back rather than the posts."],
+      "Analyse the 2,000+ datasets MARSAD holds, without downloading them.",
+      "Not built here yet. These analyses run on MARSAD servers, so you get findings back rather than posts."],
     licensed: ["report", "Request licensed datasets",
       "MARSAD publishes datasets you can apply for. Once your request is granted you load your copy here like any other file.",
       ""]
