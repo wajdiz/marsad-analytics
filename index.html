@@ -229,6 +229,12 @@ html[data-theme="dark"] .platmark{box-shadow:inset 0 0 0 1px rgba(255,255,255,.2
 .statekey li{font-size:12px;line-height:1.5;color:var(--k-blu-35-20)}
 .srcdetail h2.srcsub{margin-top:14px}
 .srchelp{margin-inline-start:auto}
+.upset-open{margin:10px 0 4px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--k-tea-100-20)}
+.upset-h{margin:0 0 2px;font-size:14px}
+.upset-open .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:10px}
+.upset-open label{display:flex;flex-direction:column;gap:3px;font-size:13px;font-weight:600}
+.upset-open input,.upset-open select{font:inherit;font-weight:400;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--k-n-100);color:var(--ink)}
+.upset-open .small-print{font-weight:400}
 .platbar{flex-wrap:wrap;gap:8px}
 .srcdetail p{margin:4px 0 8px;font-size:13px;line-height:1.5}
 .platbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
@@ -1213,7 +1219,40 @@ function compareBar(id) {
   return `<div class="cmpbar"><span>This analysis looks at one set of posts at a time. Show:${iMark("Choose a file to see its result. The table below the buttons gives the key numbers of every file side by side.")}</span><div class="filechips">${[["", "All files"], ...ds.map(d => [d.name, d.name])].map(([v, l]) => `<button class="${sel === v ? "on" : ""}" data-act="pickfilesel" data-id="${id}" data-file="${esc(v)}">${esc(l)}</button>`).join("")}</div>${platNote}</div><div id="cmptable"></div>`;
 }
 
-const TZ = [["Asia/Qatar", "Qatar"], ["UTC", "UTC"], ["Asia/Riyadh", "Saudi Arabia"], ["Asia/Dubai", "UAE"], ["Africa/Cairo", "Egypt"], ["Asia/Beirut", "Lebanon"], ["Africa/Tunis", "Tunisia"], ["Africa/Casablanca", "Morocco"], ["Europe/London", "UK"], ["America/New_York", "US Eastern"]];
+// I-02: the list used to hold ten countries. Two different questions were also being answered by
+// one control, and the source zone was a hidden field pinned to UTC, so a file exported in Qatar
+// time was read as UTC and every hour was three out.
+//
+// Every zone the browser knows, labelled with the offset that applies today. Offsets are read from
+// the browser's own database, so daylight saving is right per date rather than a fixed number.
+const TZ_FALLBACK = ["UTC", "Asia/Qatar", "Asia/Riyadh", "Asia/Dubai", "Africa/Cairo", "Asia/Beirut",
+                     "Africa/Tunis", "Africa/Casablanca", "Europe/London", "America/New_York"];
+function tzOffsetLabel(zone, when) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {timeZone: zone, timeZoneName: "longOffset"})
+      .formatToParts(when || new Date());
+    const off = (parts.filter(p => p.type === "timeZoneName")[0] || {}).value || "";
+    return off === "GMT" ? "UTC+00:00" : off.replace("GMT", "UTC");
+  } catch (e) { return ""; }
+}
+const TZ_ZONES = (() => {
+  let zones = [];
+  try { zones = Intl.supportedValuesOf("timeZone") || []; } catch (e) { zones = []; }
+  if (!zones.length) zones = TZ_FALLBACK.slice();
+  if (!zones.includes("UTC")) zones.unshift("UTC");
+  return zones;
+})();
+// The label carries the offset so that Qatar and Saudi Arabia, which share +03:00, are not two
+// unexplained choices, and so a zone that shifts with daylight saving shows what it is on today.
+const tzLabel = (z) => { const o = tzOffsetLabel(z); return o ? `${z} (${o})` : z; };
+const TZ = TZ_ZONES.map(z => [z, tzLabel(z)]);
+const TZ_BY_LABEL = (() => { const m = {}; TZ.forEach(([z, l]) => { m[l.toLowerCase()] = z; m[z.toLowerCase()] = z; }); return m; })();
+const tzFromInput = (v) => TZ_BY_LABEL[String(v || "").trim().toLowerCase()] || "";
+// What the file's own timestamps are in, as far as the parse could tell.
+function srcTzGuess() {
+  const h = (SCAN && SCAN.info && SCAN.info.source_tz_hint) || (W && W.source_tz_hint) || "";
+  return h || "UTC";
+}
 // ---------------------------------------------------------------------------------------------
 // Collecting here, in this page. Each source is called straight from the browser, so it has to be
 // one that allows a cross-origin request and needs no secret. The rows come back in the same shape
@@ -1414,8 +1453,8 @@ const LIVE = {
       return Promise.all((d || []).map(x => mastoPost(x, host)));
     }},
   reddit: {
-    label: "Reddit: search", note: "Posts with their score and comment count. No key, but Reddit refuses some browsers.",
-    rights: "platform_terms_no_redistribution", fields: ["sub", "sort"],
+    label: "Reddit: search", note: "Posts with their score and comment count. Reddit turns browsers away, so this runs through your own server.",
+    rights: "platform_terms_no_redistribution", fields: ["sub", "sort"], viaServer: true,
     async run(q, o) {
       const sub = String(o.sub || "").trim().replace(/^\/?r\//, "");
       if (sub && !/^[\w-]+$/.test(sub)) throw new Err(trUI("That does not look like a subreddit name."));
@@ -2144,7 +2183,7 @@ function collectMsg(html, kind) {
 // itself has got. The two are independent: a public source with no connector is still Planned.
 const SOURCES = {
   youtube: {name: "YouTube", mark: "Y", tint: ["#FF0000", "#111418"], blurb: "Videos and comments", cats: [["social", 1]], access: "key", state: "pilot", docs: "https://developers.google.com/youtube/v3", value: "Video and channel metadata, and the public comments under a video", note: "Free quota with your own API key from Google Cloud", methods: [["youtube", "", "Search videos"], ["youtube_comments", "", "Comments on one video"]]},
-  reddit: {name: "Reddit", mark: "R", tint: ["#FF4500", "#111418"], blurb: "Posts and discussions", cats: [["social", 1]], access: "connect", state: "pilot", docs: "https://www.reddit.com/dev/api/", value: "Posts, threaded comments and communities", note: "Reddit turns most browsers away without authorisation. A working integration elsewhere is not authorisation for MARSAD", methods: [["reddit", "", "Search posts"]]},
+  reddit: {name: "Reddit", mark: "R", tint: ["#FF4500", "#111418"], blurb: "Posts and discussions", cats: [["social", 1]], access: "connect", state: "pilot", server: true, docs: "https://www.reddit.com/dev/api/", value: "Posts, threaded comments and communities", note: "Reddit turns browsers away, so collecting here needs your own server. The documented route is an authorised account, which the MARSAD platform asks for with Connect Reddit before any collection starts", methods: [["reddit", "", "Search posts"]]},
   bluesky: {name: "Bluesky", mark: "B", tint: ["#0085FF", "#111418"], blurb: "Posts and accounts", cats: [["social", 1]], access: "public", state: "pilot", docs: "https://docs.bsky.app/", value: "Public posts, feeds and discussions", note: "Public endpoints, with rate limits", methods: [["bluesky", "", "Search public posts"], ["bluesky_user", "", "Posts from one account"]]},
   mastodon: {name: "Mastodon", mark: "M", tint: ["#563ACC", "#FFFFFF"], blurb: "Hashtags, accounts, timelines", cats: [["social", 1]], access: "public", state: "pilot", docs: "https://docs.joinmastodon.org/api/", value: "Public federated posts and conversations", note: "Each server sets its own rules, so one server may allow what another refuses", methods: [["mastodon", "", "Posts carrying a hashtag"], ["mastodon_user", "", "Posts from one account"], ["mastodon_public", "", "A whole server's timeline"]]},
   telegram: {name: "Telegram", mark: "TG", tint: ["#229ED9", "#111418"], blurb: "One public channel", cats: [["social", 1]], access: "public", state: "pilot", server: true, docs: "https://core.telegram.org/api", value: "Public channels and messages where permitted", note: "This reads the channel's public preview page, so it needs no credentials but breaks when Telegram changes its markup. The documented route needs app credentials", methods: [["telegram", "", "A channel's recent posts"]]},
@@ -2289,7 +2328,9 @@ async function runCollect() {
     setKey(COLLECT_SRC, opts.key, !!($("#c-remember") || {}).checked);
   }
   if (spec.viaServer && !proxyUrl()) {
-    collectMsg(esc(trUI("This source refuses browsers, so it needs the small proxy on your own server. Set its address in Settings, under Collecting through your server.")), "bad");
+    const wantsAccount = (srcOf(COLLECT_PLAT) || {}).access === "connect";
+    collectMsg(esc(trUI("This source refuses browsers, so it needs the small proxy on your own server. Set its address in Settings, under Collecting through your server.")) +
+      (wantsAccount ? " " + esc(trUI("This provider also wants an authorised account. The MARSAD platform asks for that connection before collection starts.")) : ""), "bad");
     return;
   }
   VIA_SERVER = !!(proxyUrl() && (spec.viaServer || proxyAll()));
@@ -2449,7 +2490,7 @@ function collectDetail(key) {
 function srcBar(key) {
   const s = srcOf(key);
   return `<div class="platbar">
-    <button class="linkbtn" data-act="cplatback">\u2039 ${esc(trUI("Choose another source"))}</button>
+    <button class="linkbtn" data-act="cplatback">\u2039 ${esc(trUI("Back to all sources"))}</button>
     <span class="platnow"><span class="platmark small" aria-hidden="true" style="background:${s.tint[0]};color:${s.tint[1]}">${esc(s.mark)}</span>${esc(trUI(s.name))}</span>
     ${srcHelpBtn(key)}
   </div>`;
@@ -2577,11 +2618,10 @@ function sourcesPanel(again) {
   const inCollect = SRC === "collect" && (COLLECT_CAT || COLLECT_PLAT);
   const cat = inCollect ? catOf(COLLECT_CAT) : null;
   const trail = inCollect ? `<div class="catbar">
-      <button class="linkbtn" data-act="ccatback">\u2039 ${esc(trUI("Back"))}</button>
       <nav class="crumb" aria-label="${esc(trUI("You are here"))}">
-        <button class="linkbtn" data-act="srcback">${esc(trUI("Overview"))}</button>
+        <button class="linkbtn" data-act="srcback">${esc(trUI("Data sources"))}</button>
         <span aria-hidden="true">/</span>
-        <button class="linkbtn" data-act="ccatback">${esc(trUI("Collect online data"))}</button>
+        <button class="linkbtn" data-act="ccatback">${esc(trUI("All collection categories"))}</button>
         <span aria-hidden="true">/</span>
         ${COLLECT_PLAT && cat ? `<button class="linkbtn" data-act="cplatback">${esc(trUI(cat.label))}</button>
         <span aria-hidden="true">/</span>
@@ -2612,13 +2652,22 @@ function srcBody(again) {
       <div id="filelist"></div>
       <div class="uprow">
         <span class="small-print">${esc(trUI("Supported formats: .csv, .xlsx, .json, .ndjson"))}</span>
-        <details class="upset"><summary>${esc(trUI("File settings"))}</summary>
+        ${`<div class="upset-open">
+          <h3 class="upset-h">${esc(trUI("How dates are read"))}</h3>
+          <p class="small-print">${esc(trUI("These two change every date, hour and weekday in the results, so check them before you analyse."))}</p>
           <div class="opts">
-            <label>${esc(trUI("Time zone"))} <select id="tz">${TZ.map(([v, n]) => `<option value="${v}" ${SCAN && SCAN.settings && SCAN.settings.analysis_tz === v ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+            <label>${esc(trUI("Source time zone"))}
+              <input id="srctz" list="tzlist" value="${esc(tzLabel(srcTzGuess()))}" spellcheck="false">
+              <span class="small-print">${esc(trUI("What the timestamps in the file are recorded in. Used only when they carry no zone of their own: a file whose times end in Z or an offset is read as written."))}</span></label>
+            <label>${esc(trUI("Display time zone"))}
+              <input id="tz" list="tzlist" value="${esc(tzLabel((SCAN && SCAN.settings && SCAN.settings.analysis_tz) || "Asia/Qatar"))}" spellcheck="false">
+              <span class="small-print">${esc(trUI("What MARSAD shows dates and hours in."))}</span></label>
             <label>${esc(trUI("Weekend"))} <select id="weekend"><option value="auto">${esc(trUI("Auto"))}</option><option value="fri-sat">Fri-Sat</option><option value="sat-sun">Sat-Sun</option></select></label>
-          </div></details>
+          </div>
+          <datalist id="tzlist">${TZ.map(([v, n]) => `<option value="${esc(n)}"></option>`).join("")}</datalist>
+        </div>`}
       </div>
-      <input type="hidden" id="srctz" value="UTC"><input type="hidden" id="platform" value="auto">
+      <input type="hidden" id="platform" value="auto">
       <button class="btn primary wide" data-act="load" id="loadbtn" ${files.length && W ? "" : "disabled"}>${esc(trUI("Analyse data"))}</button>`;
   }
   if (SRC === "collect") {
@@ -2740,7 +2789,9 @@ async function loadData(settings) {
     const paths = files.map((f, i) => { const p = "/data/" + i + "_" + f.name.replace(/[\\/]/g, "_"); py.FS.writeFile(p, f.data); return p; });
     const labels = files.map(f => (f.label || stem(f.name)).trim() || stem(f.name));
     const st = settings && settings.analysis_tz ? {analysis_tz: settings.analysis_tz, source_tz: settings.source_tz || "UTC", weekend: settings.weekend || "auto"}
-      : {analysis_tz: $("#tz")?.value || "Asia/Qatar", source_tz: $("#srctz")?.value || "UTC", weekend: $("#weekend")?.value || "auto"};
+      : {analysis_tz: tzFromInput($("#tz")?.value) || "Asia/Qatar",
+         source_tz: tzFromInput($("#srctz")?.value) || srcTzGuess(),
+         weekend: $("#weekend")?.value || "auto"};
     SCAN = JSON.parse(W.load_files(py.toPy(paths), py.toPy(st), $("#platform")?.value || "auto", py.toPy(labels), files.length > 1 ? loadMode : "combine"));
     REG = JSON.parse(W.registry_json()); PL = REG.plain; LEX = JSON.parse(W.lexicon_names());
     for (const k of Object.keys(results)) delete results[k];
