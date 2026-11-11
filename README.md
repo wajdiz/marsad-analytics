@@ -20,34 +20,150 @@ Communalytic, Zeeschuimer and the common API dumps are recognised and mapped aut
 to rename a single column. A file it does not recognise is read generically and it tells you which columns it
 matched to what.
 
-**Collect in the page.** Twenty-four platforms offering thirty-four collection methods, grouped into eight
-categories, called directly from your browser. Nothing is proxied through a server.
+**Collect in the page.** A directory of 59 sources in four categories, with 60 placements
+because Figshare is discoverable in two. 29 of them have a collector in the page, offering
+39 methods between them. The rest are in the directory with their access route documented and no
+button that pretends otherwise.
 
-The path is the same every time: **category, then platform, then method, then form.** You see the platform names
-before you open anything, and a form only ever asks for the fields that method needs.
+Pick a category, or search across all four, then pick a source. Three filters sit above the directory:
+Featured, All sources, Other sources. Featured placement is an editorial choice about what a new user sees
+first, not a ranking of scientific worth, and nothing is hidden: everything in Other sources is reachable by
+search and by its category.
 
-| Category | Platforms |
-| --- | --- |
-| Social Media | Bluesky, Mastodon, Reddit, YouTube |
-| News & Media | GDELT, The Guardian, Event Registry, New York Times, Currents, NewsAPI.org, GNews |
-| Wikipedia & Encyclopedias | Wikipedia (7 methods), Wikidata |
-| Websites, Blogs & Forums | Hacker News, Stack Exchange, Reddit |
-| Academic Research | OpenAlex, Crossref, ACL Anthology, Semantic Scholar, DOAJ, Zenodo, PubMed |
-| Government & Documents | None, and the page says so rather than offering a dead button |
-| Video & Podcasts | YouTube |
-| Open Data & Datasets | Hugging Face, Zenodo, Open Library |
+### Two labels, kept separate
 
-Reddit, YouTube and Zenodo each appear in two categories and are defined once, so there is no duplicated
-collector.
+Every source carries two labels that answer different questions, because conflating them is how a directory
+ends up claiming things that are not true.
+
+| Axis | Values | What it means |
+| --- | --- | --- |
+| Access | Public, no key, Free API key, Connect account, Research approval, Restricted | What the provider asks of you before any request can be made at all |
+| State | Operational, Pilot, Planned, Not generally available | How far the collector itself has got, which says nothing about access |
+
+`Operational` is reserved for one thing: collected end to end against the live provider with the rows
+checked. Exactly one source qualifies, the ACL Anthology. Everything else with a collector is a `Pilot`: the
+code is written and tested against recorded replies, and whether a provider answers a published page is
+settled only when you run it. A test in the suite fails if any other source claims to be operational.
+
+<details>
+<summary><b>Social Media & Discussions</b> &mdash; 9 featured, 6 other</summary>
+
+| Source | Placement | Access | State |
+| --- | --- | --- | --- |
+| YouTube | Featured | Free API key | Pilot |
+| Reddit | Featured | Connect account | Pilot |
+| Bluesky | Featured | Public, no key | Pilot |
+| Mastodon | Featured | Public, no key | Pilot |
+| Telegram | Featured | Public, no key, via your server | Pilot |
+| TikTok | Featured | Research approval | Planned |
+| Facebook | Featured | Research approval | Not generally available |
+| Instagram | Featured | Research approval | Not generally available |
+| VKontakte | Featured | Connect account | Planned |
+| Hacker News | Other | Public, no key | Pilot |
+| Stack Exchange | Other | Public, no key | Pilot |
+| Tumblr | Other | Free API key, via your server | Pilot |
+| Odnoklassniki | Other | Restricted | Not generally available |
+| Bilibili | Other | Restricted | Planned |
+| Douyin | Other | Restricted | Not generally available |
+
+</details>
+<details>
+<summary><b>News & Web</b> &mdash; 7 featured, 9 other</summary>
+
+| Source | Placement | Access | State |
+| --- | --- | --- | --- |
+| GDELT | Featured | Public, no key | Pilot |
+| Media Cloud | Featured | Free API key, via your server | Pilot |
+| Google News RSS | Featured | Public, no key | Planned |
+| RSS / Atom | Featured | Public, no key | Planned |
+| Wikipedia | Featured | Public, no key | Pilot |
+| Internet Archive | Featured | Public, no key | Planned |
+| Website URL | Featured | Public, no key | Planned |
+| The Guardian | Other | Free API key | Pilot |
+| New York Times | Other | Free API key | Pilot |
+| GNews | Other | Free API key | Pilot |
+| NewsData.io | Other | Free API key | Planned |
+| Wikidata | Other | Public, no key | Pilot |
+| WordPress | Other | Public, no key | Planned |
+| Event Registry | Other | Free API key | Pilot |
+| NewsAPI.org | Other | Free API key | Pilot |
+| Currents | Other | Free API key | Pilot |
+
+</details>
+<details>
+<summary><b>Academic Research</b> &mdash; 5 featured, 6 other</summary>
+
+| Source | Placement | Access | State |
+| --- | --- | --- | --- |
+| OpenAlex | Featured | Public, no key | Pilot |
+| Semantic Scholar | Featured | Public, no key | Pilot |
+| ACL Anthology | Featured | Public, no key | Operational |
+| PubMed | Featured | Public, no key | Pilot |
+| CORE | Featured | Free API key, via your server | Pilot |
+| Crossref | Other | Public, no key | Pilot |
+| arXiv | Other | Public, no key, via your server | Pilot |
+| Europe PMC | Other | Public, no key | Planned |
+| Figshare | Other | Public, no key | Planned |
+| DOAJ | Other | Public, no key | Pilot |
+| Open Library | Other | Public, no key | Pilot |
+
+</details>
+<details>
+<summary><b>Public Data & Institutions</b> &mdash; 10 featured, 8 other</summary>
+
+| Source | Placement | Access | State |
+| --- | --- | --- | --- |
+| UN Digital Library | Featured | Public, no key | Planned |
+| European Parliament | Featured | Public, no key | Planned |
+| European Commission | Featured | Public, no key | Planned |
+| UNESCO | Featured | Public, no key | Planned |
+| World Bank | Featured | Public, no key | Planned |
+| Eurostat | Featured | Public, no key | Planned |
+| OECD | Featured | Public, no key | Planned |
+| WHO | Featured | Public, no key | Planned |
+| Hugging Face | Featured | Public, no key | Pilot |
+| Kaggle Datasets | Featured | Free API key | Planned |
+| Figshare | Other | Public, no key | Planned |
+| UK Parliament | Other | Public, no key | Planned |
+| US Congress | Other | Free API key | Planned |
+| IPU Parline | Other | Public, no key | Planned |
+| EUR-Lex | Other | Public, no key | Planned |
+| Zenodo | Other | Public, no key | Pilot |
+| UNdata | Other | Public, no key | Planned |
+| ILOSTAT | Other | Public, no key | Planned |
+
+</details>
 
 The ACL Anthology is the unusual one. It publishes no search endpoint, so this fetches one venue-year volume of
 the bibliography GitHub serves on its behalf and filters it in the page: `arabicnlp` and `2025` returns all 177
 papers with abstracts.
 
-Most platforms need no key. Where one is needed it is a free key of your own, used for that one search and never
-written into the collected file. Each platform carries a badge saying what it asks of you: *no key*, *needs a
-key*, *often refused*, *paid plan only*, or *untested here*. None of them claims a provider is working today,
-because whether a provider accepts a call from a web page is settled only when you run it.
+Most sources need no key. Where one is needed it is a free key of your own, used for that one search and never
+written into the collected file.
+
+### The five that need your own server
+
+arXiv removed the header that permits browser calls in early 2026 and said so on its own developer list. CORE
+wants its key in a request header, which a browser answers with a preflight CORE does not accept. Media Cloud
+accepts requests from one address, a developer's own machine, and its terms forbid handing its token to the
+public. Tumblr publishes no path a browser can use and forbids public redisplay of post content. Telegram has no
+data path at all, only a public web page.
+
+Hosting the page on a server does not fix any of this, because the request still comes from the reader's
+browser. What fixes it is a server that fetches on the page's behalf:
+
+```
+GET <your proxy>?url=<provider URL, percent-encoded>
+→ the provider's reply, byte for byte
+   Access-Control-Allow-Origin: <this page's origin>
+```
+
+Paste that address into **Settings → Collecting** and those five route through it; tick **Send every source
+through it** and all 29 collectors do, which helps when a network blocks providers the page could otherwise
+reach. MARSAD refuses an address that is not https, or that carries a username and password, since anything in a
+web address ends up in the browser's history. Allow only the origins you mean to serve: an open proxy will be
+found and used by strangers. Keys typed into the form reach your server before the provider, which is the safer
+place for an institutional key and a reason not to log it.
 
 **Record while you browse.** TikTok, Instagram, Threads and X allow no search from a web page. For those, the
 [Zeeschuimer](https://github.com/digitalmethodsinitiative/zeeschuimer) browser extension records what you scroll

@@ -190,6 +190,7 @@ html[dir="rtl"] .drawer{box-shadow:6px 0 24px rgba(0,0,0,.14)}
 .crumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--k-blu-35-20)}
 .crumb b{color:var(--ink);font-weight:650}
 .platgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 10px}
+@media(min-width:1101px){.dirpanel .platgrid{grid-template-columns:repeat(5,1fr)}}
 @media(max-width:1100px){.platgrid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.platgrid{grid-template-columns:1fr}}
 .platcard{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"mark head" "mark blurb" "mark meta";column-gap:10px;row-gap:2px;align-items:center;text-align:start;border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--k-n-100);width:100%;box-sizing:border-box;color:inherit;cursor:pointer;min-height:44px}
@@ -207,8 +208,27 @@ html[data-theme="dark"] .platmark{box-shadow:inset 0 0 0 1px rgba(255,255,255,.2
 .platname{font-size:14px;font-weight:650;color:var(--ink)}
 .platblurb{font-size:12px;line-height:1.4;color:var(--k-blu-35-20)}
 .platmeta{font-size:11px;color:var(--k-blu-45-20)}
-.platname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.platname{min-width:0;overflow-wrap:anywhere;hyphens:auto}
 .platneed{white-space:nowrap;margin-inline-start:8px}
+.platstate{white-space:nowrap}
+.platacc,.platn,.platsrv{white-space:nowrap;color:var(--k-blu-35-20)}
+.platsrv{font-weight:600}
+.platsrv::after{content:"\00b7";margin-inline-start:6px;opacity:.6}
+.platacc::after{content:"\00b7";margin-inline-start:6px;opacity:.6}
+.catmethods{font-size:11px;font-weight:600;color:var(--k-blu-45-20);margin-top:2px}
+.dirfind{margin:0 0 12px}
+.dirfind input{width:100%;box-sizing:border-box}
+.dirpanel{margin:0 0 18px}
+.dirpanel:last-of-type{margin-bottom:10px}
+.paneln{display:inline-block;margin-inline-start:6px;font-size:11px;font-weight:600;color:var(--k-blu-25-20);
+  background:var(--k-tea-100-20);border:1px solid var(--border);border-radius:999px;padding:1px 7px;vertical-align:middle}
+.catmethods{color:var(--k-blu-35-20)}
+.catcount{color:var(--k-blu-25-20)}
+.tabn{font-weight:600;opacity:.75;margin-inline-start:2px}
+.statekey{margin:6px 0 8px;padding-inline-start:0;list-style:none;display:grid;gap:6px}
+.statekey li{font-size:12px;line-height:1.5;color:var(--k-blu-35-20)}
+.srcdetail h2.srcsub{margin-top:14px}
+.srcdetail p{margin:4px 0 8px;font-size:13px;line-height:1.5}
 .platbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
 .platnow{display:flex;align-items:center;gap:7px;font-weight:650;color:var(--ink)}
 .methodrow{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
@@ -216,6 +236,7 @@ html[data-theme="dark"] .platmark{box-shadow:inset 0 0 0 1px rgba(255,255,255,.2
 .methodbtn:hover{background:var(--k-tea-100-40);border-color:var(--k-tea-75-20)}
 .methodbtn.on{background:var(--k-tea-90-40);border-color:var(--teal);font-weight:650}
 .zspanel{margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
+.pxcode{background:var(--k-tea-100-20);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.6;overflow-x:auto;white-space:pre}
 .catgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:0 0 14px}
 .catcard{display:flex;flex-direction:column;gap:4px;text-align:start;border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--k-n-100);width:100%;box-sizing:border-box;color:inherit;cursor:pointer;min-height:44px}
 .catcard:hover{background:var(--k-tea-100-40);border-color:var(--k-tea-75-20)}
@@ -685,8 +706,10 @@ const SOCIAL_COLLECTORS = [
   ["Telegram", "Already running", "ready"], ["YouTube", "Already running", "ready"]];
 let SRC = "own";
 let COLLECT_SRC = "";
-let COLLECT_CAT = "";             // "" shows the eight categories rather than a platform
-let COLLECT_PLAT = "";            // the platform picked inside that category
+let COLLECT_CAT = "";             // "" shows the whole directory rather than one category
+let COLLECT_PLAT = "";            // the source picked, whether from a category or from a search
+let COLLECT_TAB = "featured";     // which directory filter is in play: featured, all, other
+let COLLECT_Q = "";               // the directory search, which cuts across every category
 let COLLECT_MODE = "";            // which of a source's modes is picked, for the ones that have modes
 // Venue codes the Anthology uses for its XML files, offered as suggestions; any code can be typed.
 const ACL_VENUES = ["acl", "emnlp", "naacl", "eacl", "coling", "lrec", "lrec-coling", "arabicnlp",
@@ -949,13 +972,54 @@ function setBig(on) {
 function settingsPage(tab) {
   SETTAB = tab || SETTAB || "display";
   const big = document.body.classList.contains("bigtext");
-  const tabs = [["display", "Display"], ["menu", "Menu and analyses"]];
+  const tabs = [["display", "Display"], ["menu", "Menu and analyses"], ["collect", "Collecting"]];
   modal(trUI("Settings"), `<div class="settabs" role="tablist">${tabs.map(([k, l]) =>
       `<button role="tab" class="settab${SETTAB === k ? " on" : ""}" data-settab="${k}" aria-selected="${SETTAB === k}">${esc(trUI(l))}</button>`).join("")}</div>
-    <div id="setbody">${SETTAB === "menu" ? customizeBody() : displayBody(big)}</div>
-    <div class="opt-actions" style="gap:8px"><button class="btn" data-act="resetall">${esc(trUI("Reset all"))}</button>${SETTAB === "menu" ? `<button class="btn primary" id="cz-go">${esc(trUI("Apply"))}</button>` : ""}</div>`);
+    <div id="setbody">${SETTAB === "menu" ? customizeBody() : SETTAB === "collect" ? collectSettingsBody() : displayBody(big)}</div>
+    <div class="opt-actions" style="gap:8px"><button class="btn" data-act="resetall">${esc(trUI("Reset all"))}</button>${SETTAB === "menu" ? `<button class="btn primary" id="cz-go">${esc(trUI("Apply"))}</button>` : ""}${SETTAB === "collect" ? `<button class="btn primary" id="px-go">${esc(trUI("Save"))}</button>` : ""}</div>`);
   document.querySelectorAll("[data-settab]").forEach(b => b.onclick = () => settingsPage(b.dataset.settab));
-  if (SETTAB === "menu") bindCustomize(); else bindDisplay();
+  if (SETTAB === "menu") bindCustomize();
+  else if (SETTAB === "collect") bindCollectSettings();
+  else bindDisplay();
+}
+function collectSettingsBody() {
+  const now = proxyUrl(), all = proxyAll();
+  const blocked = Object.keys(SOURCES).filter(k => SOURCES[k].server)
+    .map(k => trUI(SOURCES[k].name)).join("\u060C ");
+  return `<p>${esc(trUI("A browser may only call a site that agrees to be called from another site. Some providers refuse, some allow it only on a paid plan, and a few publish nothing either way. A small proxy on your own server gets past all three, because the request no longer comes from a browser."))}</p>
+    <label class="cq" for="px-url">${esc(trUI("Your proxy address"))}
+      <input id="px-url" type="url" spellcheck="false" dir="ltr" value="${esc(now)}"
+             placeholder="https://your-server.example/collect"></label>
+    <div id="px-msg" class="cmsg"></div>
+    <label class="cbox"><input type="checkbox" id="px-all"${all ? " checked" : ""}>
+      <span>${esc(trUI("Send every source through it, not only the ones that need it"))}</span></label>
+    <p class="small-print">${esc(trUI("Affected without it:"))} ${esc(blocked)}.</p>
+    <details class="srcmore"><summary>${esc(trUI("What your server has to do"))}</summary>
+      <p class="small-print">${esc(trUI("One endpoint, one parameter. It takes the provider address, fetches it, and returns the reply as it came, with a header allowing this page's origin."))}</p>
+      <pre class="pxcode" dir="ltr">GET &lt;your proxy&gt;?url=&lt;provider URL, percent-encoded&gt;
+
+&rarr; the provider's reply, byte for byte
+   Access-Control-Allow-Origin: &lt;this page's origin&gt;</pre>
+      <p class="small-print">${esc(trUI("Keys typed into the form travel to your server rather than to the provider directly, which is the safer place for an institutional key. Allow only the hosts you mean to support, and keep your own access controls in front of it: an open proxy will be found and used by others."))}</p>
+    </details>`;
+}
+function bindCollectSettings() {
+  const url = $("#px-url"), all = $("#px-all"), msg = $("#px-msg"), go = $("#px-go");
+  if (!url || !go) return;
+  const check = () => {
+    const bad = proxyProblem(url.value);
+    if (msg) { msg.textContent = bad; msg.className = "cmsg" + (bad ? " bad" : ""); }
+    go.disabled = !!bad;
+    return !bad;
+  };
+  url.oninput = check;
+  check();
+  go.onclick = () => {
+    if (!check()) return;
+    setProxy(url.value, all && all.checked);
+    if (msg) { msg.textContent = trUI(url.value.trim() ? "Saved. The sources that needed a server will use it now." : "Cleared."); msg.className = "cmsg ok"; }
+    render();
+  };
 }
 function displayBody(big) {
   return `<p>${esc(trUI("These change what you see. No number, denominator or caveat changes with them."))}</p>
@@ -1039,15 +1103,21 @@ function act(name, el) {
   if (name === "runcollect") runCollect();
   if (name === "ccat") {
     COLLECT_CAT = el.dataset.cat;
-    COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = "";
+    COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; COLLECT_Q = "";
+    // A category chosen from the landing panels is a request to see all of it, not the five shown.
+    if (COLLECT_TAB === "featured" && !sourcesIn(COLLECT_CAT, "featured").length) COLLECT_TAB = "all";
     render();
   }
   if (name === "ccatback") {
-    COLLECT_CAT = ""; COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = "";
+    COLLECT_CAT = ""; COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; COLLECT_Q = "";
     render();
   }
+  if (name === "ctab") { COLLECT_TAB = el.dataset.tab; render(); }
   if (name === "cplat") {
     COLLECT_PLAT = el.dataset.plat;
+    // A source reached from a search keeps its first category, so the trail still reads sensibly.
+    if (el.dataset.cat) COLLECT_CAT = el.dataset.cat;
+    else if (!COLLECT_CAT) COLLECT_CAT = (srcOf(COLLECT_PLAT).cats[0] || [""])[0];
     pickMethod(methodsOf(COLLECT_PLAT)[0]);
     render();
   }
@@ -1790,6 +1860,106 @@ const LIVE = {
          extra: {author: ((x.byline || {}).original || "").replace(/^By /, ""), type: x.type_of_material,
                  section: x.section_name, words: x.word_count}})));
     }},
+  arxiv: {
+    label: "arXiv", note: "Preprints with their abstracts. arXiv stopped allowing browser calls in 2026, so this one needs your server.",
+    rights: "arXiv metadata; each preprint carries its own licence", fields: [], viaServer: true,
+    async run(q, o) {
+      const text = await getText("https://export.arxiv.org/api/query?sortBy=submittedDate&sortOrder=descending" +
+        "&max_results=" + Math.min(o.limit, 200) + "&search_query=" + encodeURIComponent("all:" + q));
+      const doc = new DOMParser().parseFromString(text, "application/xml");
+      if (doc.querySelector("parsererror")) throw new Err(trUI("The source answered with something this page could not read."));
+      const txt = (el, tag) => { const n = el.querySelector(tag); return n ? n.textContent.trim().replace(/\s+/g, " ") : ""; };
+      return Promise.all([...doc.querySelectorAll("entry")].map(e => {
+        const who = [...e.querySelectorAll("author > name")].map(n => n.textContent.trim());
+        const link = [...e.querySelectorAll("link")].filter(l => l.getAttribute("type") === "text/html")[0];
+        return rec("arxiv", (link && link.getAttribute("href")) || txt(e, "id"),
+          {title: txt(e, "title"), summary: txt(e, "summary"), published: txt(e, "published"),
+           source: "arXiv", language: "en",
+           extra: {author: who.slice(0, 12).join("; "), authors: who.length, type: "preprint",
+                   category: (e.querySelector("primary_category") || e.querySelector("category") || {getAttribute: () => ""}).getAttribute("term"),
+                   doi: txt(e, "doi")}});
+      }));
+    }},
+  core: {
+    label: "CORE", note: "Open access papers and full texts from repositories worldwide. Key and server both needed.",
+    rights: "ODC-BY for CORE's own data; each record keeps its publisher's terms", fields: [], viaServer: true,
+    key: {label: "CORE API key", where: "core.ac.uk, free registration",
+          url: "https://core.ac.uk/services/api", inUrl: true},
+    async run(q, o) {
+      // The key goes in the address rather than a header: a header would make this a non-simple
+      // request, and the proxy passes the address through unchanged.
+      const d = await getJSON("https://api.core.ac.uk/v3/search/works/?limit=" + Math.min(o.limit, 100) +
+        "&q=" + encodeURIComponent(q) + "&apiKey=" + encodeURIComponent(o.key));
+      if (d.message && !d.results) throw new Err(trUI("The source answered with an error") + ": " + d.message);
+      return Promise.all((d.results || []).map(x => {
+        const who = (x.authors || []).map(a => a.name).filter(Boolean);
+        return rec("core", x.doi ? "https://doi.org/" + String(x.doi).replace(/^https?:\/\/doi\.org\//, "")
+          : (x.downloadUrl || "https://core.ac.uk/works/" + x.id),
+          {title: x.title, summary: x.abstract || "", published: x.publishedDate || x.yearPublished,
+           source: (x.publisher || (x.journals || [])[0] && x.journals[0].title) || "CORE",
+           language: ((x.language || {}).code) || "",
+           extra: {author: who.slice(0, 12).join("; "), authors: who.length, type: "paper",
+                   year: x.yearPublished, repository: ((x.dataProviders || [])[0] || {}).name}});
+      }));
+    }},
+  mediacloud: {
+    label: "Media Cloud", note: "News coverage across thousands of outlets, metadata only. Token and server both needed.",
+    rights: "metadata_only; Media Cloud grants no right to reproduce third-party content", fields: ["lang"],
+    viaServer: true,
+    key: {label: "Media Cloud token", where: "email support@mediacloud.org",
+          url: "https://search.mediacloud.org/", inUrl: true},
+    async run(q, o) {
+      const lang = o.lang ? " AND language:" + o.lang : "";
+      const d = await getJSON("https://search.mediacloud.org/api/search/story-list?platform=onlinenews-mediacloud" +
+        "&q=" + encodeURIComponent(q + lang) + "&api_key=" + encodeURIComponent(o.key));
+      if (d.detail) throw new Err(trUI("The source answered with an error") + ": " + d.detail);
+      const rows = d.stories || d.results || [];
+      return Promise.all(rows.slice(0, o.limit).map(x => rec("mediacloud", x.url,
+        {title: x.title, summary: "", published: x.publish_date,
+         source: x.media_name || x.media_url || "", language: x.language || o.lang || "",
+         extra: {type: "article", outlet: x.media_name, indexed: x.indexed_date}})));
+    }},
+  tumblr: {
+    label: "Tumblr", note: "Posts carrying one tag. Tumblr refuses browsers and forbids sharing a key, so this needs your server.",
+    rights: "platform_terms_no_redistribution; Tumblr forbids public redisplay of post content",
+    fields: [], viaServer: true,
+    q: {label: "Tag", ph: "one tag, no hash"},
+    key: {label: "Tumblr consumer key", where: "tumblr.com/oauth/apps",
+          url: "https://www.tumblr.com/oauth/apps", inUrl: true},
+    async run(q, o) {
+      const tag = q.replace(/^#/, "").trim();
+      const d = await getJSON("https://api.tumblr.com/v2/tagged?filter=text&limit=20&tag=" +
+        encodeURIComponent(tag) + "&api_key=" + encodeURIComponent(o.key));
+      const meta = d.meta || {};
+      if (meta.status && meta.status >= 400) throw new Err(trUI("The source answered with an error") + ": " + meta.msg);
+      return Promise.all((d.response || []).slice(0, o.limit).map(x => rec("tumblr", x.post_url,
+        {title: x.summary || "", summary: stripTags(x.body || x.caption || x.text || ""),
+         published: epoch(x.timestamp), source: x.blog_name || "",
+         extra: {author: x.blog_name, likes: x.note_count, type: x.type,
+                 tags: (x.tags || []).join(" ")}})));
+    }},
+  telegram: {
+    label: "Telegram", note: "The public preview of one channel, read as a web page. No key, but it needs your server and it breaks when Telegram changes its markup.",
+    rights: "platform_terms_no_redistribution", fields: [], viaServer: true,
+    q: {label: "Channel", ph: "the name after t.me/"},
+    async run(q, o) {
+      const name = q.replace(/^@/, "").replace(/^https?:\/\/t\.me\/(s\/)?/, "").replace(/\/.*$/, "").trim();
+      if (!/^[\w]{3,64}$/.test(name)) throw new Err(trUI("That does not look like a channel name."));
+      const html = await getText("https://t.me/s/" + encodeURIComponent(name));
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const posts = [...doc.querySelectorAll(".tgme_widget_message")];
+      if (!posts.length) throw new Err(trUI("Telegram returned no posts for that channel. It may be private, empty, or Telegram may have changed its page."));
+      return Promise.all(posts.slice(0, o.limit).map(el => {
+        const body = el.querySelector(".tgme_widget_message_text");
+        const when = el.querySelector("time");
+        const id = el.getAttribute("data-post") || "";
+        const views = (el.querySelector(".tgme_widget_message_views") || {}).textContent || "";
+        return rec("telegram", "https://t.me/" + id,
+          {summary: body ? body.textContent.trim() : "",
+           published: when ? when.getAttribute("datetime") : "", source: name,
+           extra: {author: name, type: "post", views_text: views.trim()}});
+      }));
+    }},
   aclanthology: {
     label: "ACL Anthology", note: "A whole venue and year from the Anthology's own metadata, abstracts included. No key.",
     rights: "ACL Anthology metadata; each paper carries its own licence, usually CC BY 4.0",
@@ -1870,11 +2040,47 @@ const LIVE = {
 function Err(msg) { this.message = msg; this.plain = true; }
 Err.prototype = Object.create(Error.prototype);
 
+// --- collecting through a proxy on your own server ------------------------------------------------
+// Some providers refuse a call from a web page outright. A page cannot talk its way past that: the
+// request has to come from a server instead. These keep the address of a small proxy the user runs,
+// and route the request through it when a source needs one.
+const PROXYKEY = "marsad_proxy", PROXYALLKEY = "marsad_proxy_all";
+function proxyUrl() { try { return localStorage.getItem(PROXYKEY) || ""; } catch (e) { return ""; } }
+function proxyAll() { try { return localStorage.getItem(PROXYALLKEY) === "1"; } catch (e) { return false; } }
+function setProxy(url, all) {
+  try {
+    if (url) { localStorage.setItem(PROXYKEY, url); } else { localStorage.removeItem(PROXYKEY); }
+    if (all) { localStorage.setItem(PROXYALLKEY, "1"); } else { localStorage.removeItem(PROXYALLKEY); }
+  } catch (e) { /* a browser with storage switched off keeps nothing between visits */ }
+}
+// Returns a reason the address cannot be used, or "" if it can.
+function proxyProblem(raw) {
+  const v = String(raw || "").trim();
+  if (!v) return "";
+  let u;
+  try { u = new URL(v); } catch (e) { return trUI("That is not a web address. It has to start with https://"); }
+  const local = u.hostname === "localhost" || u.hostname === "127.0.0.1" || u.hostname === "[::1]";
+  if (u.protocol !== "https:" && !(u.protocol === "http:" && local))
+    return trUI("Use https, so that what you collect is not readable on the way. Plain http is allowed only for a proxy on this computer.");
+  if (u.username || u.password) return trUI("Take the username and password out of the address. Anything in a web address is kept in the browser history and sent in plain sight.");
+  if (u.hash) return trUI("Take the # and everything after it out of the address.");
+  return "";
+}
+// Set for the length of one collection, read by getText and getJSON.
+let VIA_SERVER = false;
+function through(url) {
+  if (!VIA_SERVER) return url;
+  const p = proxyUrl();
+  if (!p) return url;
+  return p + (p.includes("?") ? "&" : "?") + "url=" + encodeURIComponent(url);
+}
+
 async function getText(url) {
   let r;
   try {
-    r = await fetch(url);
+    r = await fetch(through(url));
   } catch (e) {
+    if (VIA_SERVER) throw new Err(trUI("Your server did not answer. Check the address in Settings, and that the proxy is running and sends this page's origin back in Access-Control-Allow-Origin."));
     throw new Err(trUI("This source does not allow a web page to call it directly, so the browser refused the request. Collect it on the MARSAD platform instead."));
   }
   if (!r.ok) throw new Err(trUI("The source answered with an error") + " (" + r.status + ").");
@@ -1884,9 +2090,11 @@ async function getText(url) {
 async function getJSON(url) {
   let r;
   try {
-    r = await fetch(url, {headers: {Accept: "application/json"}});
+    // Accept is a safelisted header, so this stays a simple request and triggers no preflight.
+    r = await fetch(through(url), {headers: {Accept: "application/json"}});
   } catch (e) {
     // A browser reports a refused cross-origin request and a dead network the same way.
+    if (VIA_SERVER) throw new Err(trUI("Your server did not answer. Check the address in Settings, and that the proxy is running and sends this page's origin back in Access-Control-Allow-Origin."));
     throw new Err(trUI("The browser could not reach this source. Either you are offline, or the provider does not allow a web page to call it directly. Nothing was collected."));
   }
   if (!r.ok) throw new Err(trUI("The source answered with an error") + " (" + r.status + "). " +
@@ -1912,121 +2120,122 @@ function collectMsg(html, kind) {
 // and which collection methods it offers. A method names the collector it runs (`src`) and, where one
 // collector serves several methods, which mode of it. Reddit and YouTube are listed by two categories
 // each and defined once here, so neither the collector nor its record is duplicated.
-const COLLECT_PLATFORMS = {
-  bluesky: {name: "Bluesky", mark: "B", tint: ["#0085FF", "#111418"], blurb: "Posts and accounts", need: "open",
-            methods: [["bluesky", "", "Search public posts"],
-                      ["bluesky_user", "", "Posts from one account"]]},
-  mastodon: {name: "Mastodon", mark: "M", tint: ["#563ACC", "#FFFFFF"], blurb: "Hashtags, accounts, timelines", need: "open",
-             methods: [["mastodon", "", "Posts carrying a hashtag"],
-                       ["mastodon_user", "", "Posts from one account"],
-                       ["mastodon_public", "", "A whole server's timeline"]]},
-  reddit: {name: "Reddit", mark: "R", tint: ["#FF4500", "#111418"], blurb: "Posts and discussions", need: "patchy",
-           methods: [["reddit", "", "Search posts"]]},
-  youtube: {name: "YouTube", mark: "Y", tint: ["#FF0000", "#111418"], blurb: "Videos and comments", need: "key",
-            methods: [["youtube", "", "Search videos"],
-                      ["youtube_comments", "", "Comments on one video"]]},
-  gdelt: {name: "GDELT", mark: "G", tint: ["#0F6E7A", "#FFFFFF"], blurb: "World news index", need: "open",
-          methods: [["gdelt", "", "Search news coverage"]]},
-  guardian: {name: "The Guardian", mark: "TG", tint: ["#052962", "#FFFFFF"], blurb: "One newspaper's archive", need: "key",
-             methods: [["guardian", "", "Search articles"]]},
-  wikipedia: {name: "Wikipedia", mark: "W", tint: ["#000000", "#FFFFFF"], blurb: "Articles, edits, readership", need: "open",
-              methods: [["wikipedia", "search", "Search articles"],
-                        ["wikipedia", "article", "Collect an article"],
-                        ["wikipedia", "compare", "Compare languages"],
-                        ["wikipedia", "revisions", "Revision history"],
-                        ["wikipedia", "views", "Pageview trends"],
-                        ["wikipedia", "talk", "Talk page"],
-                        ["wikipedia", "links", "Related articles"]]},
-  wikidata: {name: "Wikidata", mark: "WD", tint: ["#006699", "#FFFFFF"], blurb: "Structured items", need: "open",
-             methods: [["wikidata", "", "Search items"]]},
-  hackernews: {name: "Hacker News", mark: "HN", tint: ["#FF6600", "#111418"], blurb: "Stories and comments", need: "open",
-               methods: [["hackernews", "", "Search the archive"]]},
-  stackexchange: {name: "Stack Exchange", mark: "SE", tint: ["#1E5397", "#FFFFFF"], blurb: "Questions and answers", need: "open",
-                  methods: [["stackexchange", "", "Search questions"]]},
-  openalex: {name: "OpenAlex", mark: "OA", tint: ["#000000", "#FFFFFF"], blurb: "Papers and citations", need: "open",
-             methods: [["openalex", "", "Search papers"]]},
-  crossref: {name: "Crossref", mark: "CR", tint: ["#3EB1C8", "#111418"], blurb: "Publisher records", need: "open",
-             methods: [["crossref", "", "Search records"]]},
-  aclanthology: {name: "ACL Anthology", mark: "ACL", tint: ["#D51920", "#FFFFFF"],
-                 blurb: "Computational linguistics papers", need: "open",
-                 methods: [["aclanthology", "", "A venue and year"]]},
-  semanticscholar: {name: "Semantic Scholar", mark: "S2", tint: ["#1857B6", "#FFFFFF"],
-                    blurb: "Papers, abstracts, citations", need: "open",
-                    methods: [["semanticscholar", "", "Search papers"]]},
-  doaj: {name: "DOAJ", mark: "DJ", tint: ["#B5121B", "#FFFFFF"],
-         blurb: "Open access journal articles", need: "open",
-         methods: [["doaj", "", "Search articles"]]},
-  pubmed: {name: "PubMed", mark: "PM", tint: ["#20558A", "#FFFFFF"],
-           blurb: "Biomedical citations", need: "untested",
-           methods: [["pubmed", "", "Search citations"]]},
-  zenodo: {name: "Zenodo", mark: "ZN", tint: ["#1375BE", "#FFFFFF"],
-           blurb: "Datasets, preprints, software", need: "open",
-           methods: [["zenodo", "", "Search records"]]},
-  openlibrary: {name: "Open Library", mark: "OL", tint: ["#E1DCC5", "#111418"],
-                blurb: "Book records and subjects", need: "open",
-                methods: [["openlibrary", "", "Search books"]]},
-  eventregistry: {name: "Event Registry", mark: "ER", tint: ["#2D6CDF", "#FFFFFF"],
-                  blurb: "Multilingual news index", need: "key",
-                  methods: [["eventregistry", "", "Search news"]]},
-  newsapi: {name: "NewsAPI.org", mark: "NA", tint: ["#C8102E", "#FFFFFF"],
-            blurb: "Headlines and descriptions", need: "paid",
-            methods: [["newsapi", "", "Search articles"]]},
-  gnews: {name: "GNews", mark: "GN", tint: ["#1A73E8", "#FFFFFF"],
-          blurb: "Headlines and descriptions", need: "paid",
-          methods: [["gnews", "", "Search articles"]]},
-  currents: {name: "Currents", mark: "CU", tint: ["#0B6E4F", "#FFFFFF"],
-             blurb: "News headlines", need: "untested",
-             methods: [["currents", "", "Search news"]]},
-  nyt: {name: "New York Times", mark: "NYT", tint: ["#111418", "#FFFFFF"],
-        blurb: "One newspaper's archive", need: "untested",
-        methods: [["nyt", "", "Search the archive"]]},
-  huggingface: {name: "Hugging Face", mark: "HF", tint: ["#FFD21E", "#111418"], blurb: "Public datasets", need: "open",
-                methods: [["huggingface", "", "Search datasets"]]}
+// >>> GENERATED SOURCES BEGIN
+// --- the source directory ------------------------------------------------------------------------
+// Generated from marsad_analytics/sources.py. Edit that file, then rebuild; do not edit here.
+// access = what you must supply before any request can be made. state = how far the collector
+// itself has got. The two are independent: a public source with no connector is still Planned.
+const SOURCES = {
+  youtube: {name: "YouTube", mark: "Y", tint: ["#FF0000", "#111418"], blurb: "Videos and comments", cats: [["social", 1]], access: "key", state: "pilot", docs: "https://developers.google.com/youtube/v3", value: "Video and channel metadata, and the public comments under a video", note: "Free quota with your own API key from Google Cloud", methods: [["youtube", "", "Search videos"], ["youtube_comments", "", "Comments on one video"]]},
+  reddit: {name: "Reddit", mark: "R", tint: ["#FF4500", "#111418"], blurb: "Posts and discussions", cats: [["social", 1]], access: "connect", state: "pilot", docs: "https://www.reddit.com/dev/api/", value: "Posts, threaded comments and communities", note: "Reddit turns most browsers away without authorisation. A working integration elsewhere is not authorisation for MARSAD", methods: [["reddit", "", "Search posts"]]},
+  bluesky: {name: "Bluesky", mark: "B", tint: ["#0085FF", "#111418"], blurb: "Posts and accounts", cats: [["social", 1]], access: "public", state: "pilot", docs: "https://docs.bsky.app/", value: "Public posts, feeds and discussions", note: "Public endpoints, with rate limits", methods: [["bluesky", "", "Search public posts"], ["bluesky_user", "", "Posts from one account"]]},
+  mastodon: {name: "Mastodon", mark: "M", tint: ["#563ACC", "#FFFFFF"], blurb: "Hashtags, accounts, timelines", cats: [["social", 1]], access: "public", state: "pilot", docs: "https://docs.joinmastodon.org/api/", value: "Public federated posts and conversations", note: "Each server sets its own rules, so one server may allow what another refuses", methods: [["mastodon", "", "Posts carrying a hashtag"], ["mastodon_user", "", "Posts from one account"], ["mastodon_public", "", "A whole server's timeline"]]},
+  telegram: {name: "Telegram", mark: "TG", tint: ["#229ED9", "#111418"], blurb: "One public channel", cats: [["social", 1]], access: "public", state: "pilot", server: true, docs: "https://core.telegram.org/api", value: "Public channels and messages where permitted", note: "This reads the channel's public preview page, so it needs no credentials but breaks when Telegram changes its markup. The documented route needs app credentials", methods: [["telegram", "", "A channel's recent posts"]]},
+  tiktok: {name: "TikTok", mark: "TK", tint: ["#000000", "#FFFFFF"], blurb: "Public videos and comments", cats: [["social", 1]], access: "approval", state: "planned", docs: "https://developers.tiktok.com/products/research-api/", value: "Public video and comment research", note: "Research API approval is given to a named project. Approval does not by itself permit collection through a third-party host, so the approved workflow has to be confirmed"},
+  facebook: {name: "Facebook", mark: "FB", tint: ["#0A4FBF", "#FFFFFF"], blurb: "Approved research data", cats: [["social", 1]], access: "approval", state: "unavailable", docs: "https://developers.facebook.com/docs/content-library-and-api/", value: "Public research data where approved", note: "Meta Content Library data stays inside Meta's approved environment. Do not assume it may be exported to a MARSAD server"},
+  instagram: {name: "Instagram", mark: "IG", tint: ["#A32A72", "#FFFFFF"], blurb: "Approved research data", cats: [["social", 1]], access: "approval", state: "unavailable", docs: "https://developers.facebook.com/docs/content-library-and-api/", value: "Public research data where approved", note: "Same approved environment and export limits as Facebook"},
+  vk: {name: "VKontakte", mark: "VK", tint: ["#0057B8", "#FFFFFF"], blurb: "Russian-language communities", cats: [["social", 1]], access: "connect", state: "planned", docs: "https://dev.vk.com/", value: "Russian-language community posts and comments", note: "Free API, but the analytics permissions need review before a hosted service uses them"},
+  hackernews: {name: "Hacker News", mark: "HN", tint: ["#FF6600", "#111418"], blurb: "Stories and comments", cats: [["social", 0]], access: "public", state: "pilot", docs: "https://hn.algolia.com/api", value: "Technology posts and discussions", note: "Public API, no key", methods: [["hackernews", "", "Search the archive"]]},
+  stackexchange: {name: "Stack Exchange", mark: "SE", tint: ["#1E5397", "#FFFFFF"], blurb: "Questions and answers", cats: [["social", 0]], access: "public", state: "pilot", docs: "https://api.stackexchange.com/docs", value: "Specialised question and answer content", note: "Public API with a daily quota; a free key raises it", methods: [["stackexchange", "", "Search questions"]]},
+  tumblr: {name: "Tumblr", mark: "TU", tint: ["#001935", "#FFFFFF"], blurb: "Posts by tag", cats: [["social", 0]], access: "key", state: "pilot", server: true, docs: "https://www.tumblr.com/docs/en/api/v2", value: "Posts carrying one tag", note: "Refuses browsers and forbids sharing a key, so it runs with your own key through your own server. Tumblr also forbids public redisplay of post content", methods: [["tumblr", "", "Posts with a tag"]]},
+  odnoklassniki: {name: "Odnoklassniki", mark: "OK", tint: ["#B05608", "#FFFFFF"], blurb: "Authorised group data", cats: [["social", 0]], access: "restricted", state: "unavailable", docs: "https://apiok.ru/en/", value: "Authorised group data", note: "The API scope is restricted to authorised accounts and purposes"},
+  bilibili: {name: "Bilibili", mark: "BL", tint: ["#00748F", "#FFFFFF"], blurb: "Chinese video and account data", cats: [["social", 0]], access: "restricted", state: "planned", value: "Chinese-language video and account data", note: "Authorised access only, and of limited use for general research"},
+  douyin: {name: "Douyin", mark: "DY", tint: ["#161823", "#FFFFFF"], blurb: "Chinese short video data", cats: [["social", 0]], access: "restricted", state: "unavailable", value: "Chinese short-video and account data", note: "Developer access is restricted and not generally available"},
+  gdelt: {name: "GDELT", mark: "G", tint: ["#0F6E7A", "#FFFFFF"], blurb: "World news index", cats: [["news", 1]], access: "public", state: "pilot", docs: "https://www.gdeltproject.org/", value: "Global multilingual news and events", note: "Public data endpoints, no key", methods: [["gdelt", "", "Search news coverage"]]},
+  mediacloud: {name: "Media Cloud", mark: "MC", tint: ["#2C6E49", "#FFFFFF"], blurb: "News coverage index", cats: [["news", 1]], access: "key", state: "pilot", server: true, docs: "https://mediacloud.org/", value: "News research collections and search across thousands of outlets", note: "Metadata only, and their terms forbid passing a token to the public, so it runs with your own token through your own server", methods: [["mediacloud", "", "Search coverage"]]},
+  googlenews: {name: "Google News RSS", mark: "GN", tint: ["#1967D2", "#FFFFFF"], blurb: "Topic news discovery", cats: [["news", 1]], access: "public", state: "planned", value: "Topic-oriented news discovery", note: "An unofficial feed. Google documents no terms for it and may change or withdraw it without notice, so nothing built on it is stable"},
+  rss: {name: "RSS / Atom", mark: "RSS", tint: ["#B35A10", "#FFFFFF"], blurb: "Any publisher's feed", cats: [["news", 1]], access: "public", state: "planned", value: "Publisher feeds and blog posts", note: "Each feed carries its own terms. Almost no feed allows a browser to read it from another site, so this needs your server"},
+  wikipedia: {name: "Wikipedia", mark: "W", tint: ["#000000", "#FFFFFF"], blurb: "Articles, edits, readership", cats: [["news", 1]], access: "public", state: "pilot", docs: "https://www.mediawiki.org/wiki/API:Main_page", value: "Multilingual pages, revision history and pageviews", note: "Public APIs. Text is CC BY-SA, so anything you republish has to credit Wikipedia and its editors and carry the same licence", methods: [["wikipedia", "search", "Search articles"], ["wikipedia", "article", "Collect an article"], ["wikipedia", "compare", "Compare languages"], ["wikipedia", "revisions", "Revision history"], ["wikipedia", "views", "Pageview trends"], ["wikipedia", "talk", "Talk page"], ["wikipedia", "links", "Related articles"]]},
+  wayback: {name: "Internet Archive", mark: "IA", tint: ["#1F3A5F", "#FFFFFF"], blurb: "Archived web pages", cats: [["news", 1]], access: "public", state: "planned", value: "Archived web pages and snapshots over time", note: "Public APIs, with limits. The archive holds a copy; it does not grant you the rights to the page it copied"},
+  websiteurl: {name: "Website URL", mark: "URL", tint: ["#4B5563", "#FFFFFF"], blurb: "One page you name", cats: [["news", 1]], access: "public", state: "planned", value: "Permitted extraction of a public web page you name", note: "A browser cannot read another site's page, so this needs your server. Check robots.txt, copyright and the site's terms before collecting"},
+  guardian: {name: "The Guardian", mark: "GU", tint: ["#052962", "#FFFFFF"], blurb: "One newspaper's archive", cats: [["news", 0]], access: "key", state: "pilot", docs: "https://open-platform.theguardian.com/documentation/", value: "Articles and metadata from one publisher", note: "Free key, with restrictions on what you may store and republish", methods: [["guardian", "", "Search articles"]]},
+  nyt: {name: "New York Times", mark: "NYT", tint: ["#111418", "#FFFFFF"], blurb: "One newspaper's archive", cats: [["news", 0]], access: "key", state: "pilot", docs: "https://developer.nytimes.com/", value: "News metadata from one publisher", note: "Free developer access with its own terms. Whether it answers a published page is untested here", methods: [["nyt", "", "Search the archive"]]},
+  gnews: {name: "GNews", mark: "GNs", tint: ["#1A73E8", "#FFFFFF"], blurb: "Headlines and descriptions", cats: [["news", 0]], access: "key", state: "pilot", docs: "https://gnews.io/docs/v4", value: "News search and metadata", note: "The free plan answers a developer's own machine only, so a published page needs a paid plan or your server", methods: [["gnews", "", "Search articles"]]},
+  newsdata: {name: "NewsData.io", mark: "ND", tint: ["#1D4ED8", "#FFFFFF"], blurb: "News search and metadata", cats: [["news", 0]], access: "key", state: "planned", docs: "https://newsdata.io/documentation", value: "News search and metadata", note: "The free plan gives 200 credits a day, the last 48 hours only, and delays the data by 12 hours. They document nothing about browser requests"},
+  wikidata: {name: "Wikidata", mark: "WD", tint: ["#006699", "#FFFFFF"], blurb: "Structured items", cats: [["news", 0]], access: "public", state: "pilot", docs: "https://www.wikidata.org/wiki/Wikidata:Data_access", value: "Structured linked knowledge", note: "Public API and SPARQL, both rate limited. Data is CC0", methods: [["wikidata", "", "Search items"]]},
+  wordpress: {name: "WordPress", mark: "WP", tint: ["#21759B", "#FFFFFF"], blurb: "Posts on supported sites", cats: [["news", 0]], access: "public", state: "planned", docs: "https://developer.wordpress.org/rest-api/", value: "Posts and pages on sites that expose the REST API", note: "Many sites switch the API off or put it behind a login, and most do not allow a browser on another site to read it"},
+  eventregistry: {name: "Event Registry", mark: "ER", tint: ["#2D6CDF", "#FFFFFF"], blurb: "Multilingual news index", cats: [["news", 0]], access: "key", state: "pilot", docs: "https://eventregistry.org/documentation", value: "Multilingual news articles and events", note: "Built and kept here, though the specification puts paid collection outside its free-first scope. Their terms forbid republishing full text, so this collects a short excerpt only", methods: [["eventregistry", "", "Search news"]]},
+  newsapi: {name: "NewsAPI.org", mark: "NA", tint: ["#C8102E", "#FFFFFF"], blurb: "Headlines and descriptions", cats: [["news", 0]], access: "key", state: "pilot", docs: "https://newsapi.org/docs", value: "Article search and metadata", note: "Built and kept here, though the specification says not to treat the free developer plan as fit for a public deployment. The free plan answers a developer's own machine only", methods: [["newsapi", "", "Search articles"]]},
+  currents: {name: "Currents", mark: "CU", tint: ["#0B6E4F", "#FFFFFF"], blurb: "News headlines", cats: [["news", 0]], access: "key", state: "pilot", docs: "https://currentsapi.services/en/docs/", value: "News headlines and metadata", note: "Free key. Whether it answers a published page is untested here", methods: [["currents", "", "Search news"]]},
+  openalex: {name: "OpenAlex", mark: "OA", tint: ["#000000", "#FFFFFF"], blurb: "Papers and citations", cats: [["academic", 1]], access: "public", state: "pilot", docs: "https://docs.openalex.org/", value: "Scholarly works, authors and institutions", note: "Open API with rate limits. Adding your email to the request raises them", methods: [["openalex", "", "Search papers"]]},
+  semanticscholar: {name: "Semantic Scholar", mark: "S2", tint: ["#1857B6", "#FFFFFF"], blurb: "Papers, abstracts, citations", cats: [["academic", 1]], access: "public", state: "pilot", docs: "https://www.semanticscholar.org/product/api", value: "Papers, citations and the scholarly graph", note: "Runs unauthenticated here. Their licence forbids disclosing a key, so a platform-held key cannot be shared with users", methods: [["semanticscholar", "", "Search papers"]]},
+  aclanthology: {name: "ACL Anthology", mark: "ACL", tint: ["#D51920", "#FFFFFF"], blurb: "Computational linguistics papers", cats: [["academic", 1]], access: "public", state: "operational", docs: "https://github.com/acl-org/acl-anthology", value: "NLP publications and their metadata, abstracts included", note: "There is no search endpoint, so this reads one venue-year volume of the published metadata and filters it here. Each paper keeps its own licence, usually CC BY 4.0", methods: [["aclanthology", "", "A venue and year"]]},
+  pubmed: {name: "PubMed", mark: "PM", tint: ["#20558A", "#FFFFFF"], blurb: "Biomedical citations", cats: [["academic", 1]], access: "public", state: "pilot", docs: "https://www.ncbi.nlm.nih.gov/books/NBK25501/", value: "Biomedical bibliographic records", note: "NCBI E-utilities, no key for light use. Title, journal and date, no abstract", methods: [["pubmed", "", "Search citations"]]},
+  core: {name: "CORE", mark: "CO", tint: ["#B5121B", "#FFFFFF"], blurb: "Repository papers and full texts", cats: [["academic", 1]], access: "key", state: "pilot", server: true, docs: "https://core.ac.uk/services/api", value: "Open access paper metadata and full text from repositories worldwide", note: "Free key. CORE wants it in a request header, which a browser cannot send to another site, so this needs your server", methods: [["core", "", "Search works"]]},
+  crossref: {name: "Crossref", mark: "CR", tint: ["#3EB1C8", "#111418"], blurb: "Publisher records", cats: [["academic", 0]], access: "public", state: "pilot", docs: "https://www.crossref.org/documentation/retrieve-metadata/rest-api/", value: "DOIs, publication and citation metadata", note: "Public REST API, no key", methods: [["crossref", "", "Search records"]]},
+  arxiv: {name: "arXiv", mark: "aX", tint: ["#B31B1B", "#FFFFFF"], blurb: "Preprints and abstracts", cats: [["academic", 0]], access: "public", state: "pilot", server: true, docs: "https://info.arxiv.org/help/api/", value: "Preprints and scholarly metadata with abstracts", note: "No key, but arXiv removed the header that lets a browser read it in early 2026, so this needs your server", methods: [["arxiv", "", "Search preprints"]]},
+  europepmc: {name: "Europe PMC", mark: "PMC", tint: ["#007C82", "#FFFFFF"], blurb: "Biomedical articles", cats: [["academic", 0]], access: "public", state: "planned", docs: "https://europepmc.org/RestfulWebService", value: "Biomedical articles and metadata, with abstracts and some full text", note: "Public REST API, no key, ten requests a second. Wider than PubMed because it carries abstracts and open full text"},
+  figshare: {name: "Figshare", mark: "FS", tint: ["#B02A5B", "#FFFFFF"], blurb: "Research data and files", cats: [["academic", 0], ["public", 0]], access: "public", state: "planned", docs: "https://docs.figshare.com/", value: "Research data and supplementary files", note: "Search is a POST request, which a browser cannot send to another site, so this needs your server. Each item carries its own licence"},
+  doaj: {name: "DOAJ", mark: "DJ", tint: ["#B5121B", "#FFFFFF"], blurb: "Open access journal articles", cats: [["academic", 0]], access: "public", state: "pilot", docs: "https://doaj.org/api/docs", value: "Articles from indexed open access journals", note: "Public API, no key. Not in the specification's directory; built and kept here", methods: [["doaj", "", "Search articles"]]},
+  openlibrary: {name: "Open Library", mark: "OL", tint: ["#E1DCC5", "#111418"], blurb: "Book records and subjects", cats: [["academic", 0]], access: "public", state: "pilot", docs: "https://openlibrary.org/developers/api", value: "Book records, subjects and editions", note: "Public API, no key. Not in the specification's directory; built and kept here", methods: [["openlibrary", "", "Search books"]]},
+  undl: {name: "UN Digital Library", mark: "UN", tint: ["#007DB8", "#FFFFFF"], blurb: "UN documents and resolutions", cats: [["public", 1]], access: "public", state: "planned", docs: "https://digitallibrary.un.org/", value: "UN documents, resolutions and voting records", note: "The catalogue documents no API on its own pages, so the export route has to be found and checked first"},
+  europarl: {name: "European Parliament", mark: "EP", tint: ["#2B4A8B", "#FFFFFF"], blurb: "Debates, documents, votes", cats: [["public", 1]], access: "public", state: "planned", docs: "https://data.europarl.europa.eu/", value: "Debates, documents and votes", note: "Public institutional data, published as open data"},
+  eucommission: {name: "European Commission", mark: "EC", tint: ["#004494", "#FFFFFF"], blurb: "EU policy documents and data", cats: [["public", 1]], access: "public", state: "planned", docs: "https://data.europa.eu/", value: "EU policy documents and datasets", note: "The portal offers an API search and a SPARQL endpoint, over many separate publishers. Each needs its own mapping"},
+  unesco: {name: "UNESCO", mark: "UNE", tint: ["#1B5AA8", "#FFFFFF"], blurb: "Education and culture indicators", cats: [["public", 1]], access: "public", state: "planned", docs: "https://databrowser.uis.unesco.org/", value: "Education, science and culture indicators", note: "Published through the UIS data browser. Whether it exposes a documented API needs checking"},
+  worldbank: {name: "World Bank", mark: "WB", tint: ["#002244", "#FFFFFF"], blurb: "Development indicators", cats: [["public", 1]], access: "public", state: "planned", docs: "https://datahelpdesk.worldbank.org/knowledgebase/topics/125589-developer-information", value: "Global development indicators", note: "Public API, no key. One of the easiest first connectors"},
+  eurostat: {name: "Eurostat", mark: "ES", tint: ["#13547A", "#FFFFFF"], blurb: "European statistics", cats: [["public", 1]], access: "public", state: "planned", docs: "https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access", value: "European statistical datasets", note: "Public API, no key"},
+  oecd: {name: "OECD", mark: "OECD", tint: ["#0D4E8A", "#FFFFFF"], blurb: "Economic and social indicators", cats: [["public", 1]], access: "public", state: "planned", value: "Economic and social indicators", note: "Public SDMX API. The query format is unlike the others, so it needs its own adapter"},
+  who: {name: "WHO", mark: "WHO", tint: ["#0067A0", "#FFFFFF"], blurb: "Health indicators", cats: [["public", 1]], access: "public", state: "planned", docs: "https://www.who.int/data/gho/info/gho-odata-api", value: "Health indicators and datasets", note: "Public data API, no key"},
+  huggingface: {name: "Hugging Face", mark: "HF", tint: ["#FFD21E", "#111418"], blurb: "Public datasets", cats: [["public", 1]], access: "public", state: "pilot", docs: "https://huggingface.co/docs/hub/index", value: "Machine learning datasets and their cards", note: "Public API. Each repository carries its own licence and some are gated behind acceptance", methods: [["huggingface", "", "Search datasets"]]},
+  kaggle: {name: "Kaggle Datasets", mark: "KG", tint: ["#10749F", "#FFFFFF"], blurb: "Public datasets and metadata", cats: [["public", 1]], access: "key", state: "planned", docs: "https://www.kaggle.com/docs/api", value: "Public datasets and their metadata", note: "A token from your account settings, and each dataset's licence governs what you may do with it"},
+  ukparliament: {name: "UK Parliament", mark: "UKP", tint: ["#006853", "#FFFFFF"], blurb: "Debates and legislation", cats: [["public", 0]], access: "public", state: "planned", docs: "https://developer.parliament.uk/", value: "UK debates and legislative records", note: "Public parliamentary APIs, several of them, one per collection"},
+  uscongress: {name: "US Congress", mark: "USC", tint: ["#1B2B5E", "#FFFFFF"], blurb: "Bills and legislative metadata", cats: [["public", 0]], access: "key", state: "planned", docs: "https://api.congress.gov/", value: "US legislative metadata and bills", note: "Free key from Congress.gov"},
+  ipuparline: {name: "IPU Parline", mark: "IPU", tint: ["#1E5B8C", "#FFFFFF"], blurb: "Comparative parliamentary data", cats: [["public", 0]], access: "public", state: "planned", docs: "https://data.ipu.org/", value: "Comparative data on national parliaments", note: "Downloads and exports rather than a documented API, so a connector would read the published files"},
+  eurlex: {name: "EUR-Lex", mark: "EUR", tint: ["#17365D", "#FFFFFF"], blurb: "EU law and legislation", cats: [["public", 0]], access: "public", state: "planned", docs: "https://eur-lex.europa.eu/", value: "EU law, legislation and case law", note: "Legal data interfaces, with registration for the bulk web service"},
+  zenodo: {name: "Zenodo", mark: "ZN", tint: ["#1375BE", "#FFFFFF"], blurb: "Datasets, preprints, software", cats: [["public", 0]], access: "public", state: "pilot", docs: "https://developers.zenodo.org/", value: "Open research artifacts: datasets, preprints and software", note: "Public REST API, no key for search. Each record carries its own licence", methods: [["zenodo", "", "Search records"]]},
+  undata: {name: "UNdata", mark: "UND", tint: ["#0B7285", "#FFFFFF"], blurb: "UN statistical collections", cats: [["public", 0]], access: "public", state: "planned", docs: "https://data.un.org/", value: "UN statistical collections", note: "Access differs by dataset, so each one needs checking separately"},
+  ilostat: {name: "ILOSTAT", mark: "ILO", tint: ["#1A4A8A", "#FFFFFF"], blurb: "Labour statistics", cats: [["public", 0]], access: "public", state: "planned", docs: "https://ilostat.ilo.org/data/", value: "International labour statistics", note: "Published through the data browser, with bulk files. Which of those a connector can read needs checking"},
 };
-// What each badge claims, and nothing more. None of these says a provider is known to be working:
-// whether it accepts a call from a web page is only settled when you run it.
-const NEED = {open: ["ready", "No key"], key: ["key", "Needs a key"],
-              patchy: ["approval", "Often refused"], paid: ["approval", "Paid plan only"],
-              untested: ["approval", "Untested here"]};
-
 const COLLECT_CATS = [
-  {key: "social", icon: "people", label: "Social Media",
-   detail: "Posts, comments, accounts and engagement",
-   plat: ["bluesky", "mastodon", "reddit", "youtube"],
-   note: "TikTok, Instagram, Threads and X allow no search from a web page at all. Record those while you browse, with Zeeschuimer."},
-  {key: "news", icon: "report", label: "News & Media",
-   detail: "Headlines, outlets, coverage and framing",
-   plat: ["gdelt", "guardian", "eventregistry", "nyt", "currents", "newsapi", "gnews"],
-   note: "These collect the headline and the provider's summary, not the article text. NewsAPI.org and GNews refuse browsers on their free plans, so those two need a paid plan or the MARSAD platform."},
-  {key: "wiki", icon: "topics", label: "Wikipedia & Encyclopedias",
-   detail: "Article text, revisions, talk pages, readership",
-   plat: ["wikipedia", "wikidata"],
-   note: "Wikipedia text is CC BY-SA: you may analyse and quote it, and anything you republish has to credit Wikipedia and its editors and carry the same licence."},
-  {key: "web", icon: "quote", label: "Websites, Blogs & Forums",
-   detail: "Public discussion boards and the threads on them",
-   plat: ["hackernews", "stackexchange", "reddit"],
-   note: "Reading an arbitrary web page or blog needs a server to fetch it, because a page cannot fetch another site that has not allowed it. That one belongs on the MARSAD platform."},
-  {key: "academic", icon: "spread", label: "Academic Research",
-   detail: "Papers, abstracts, venues and citations",
-   plat: ["openalex", "crossref", "aclanthology", "semanticscholar", "doaj", "zenodo", "pubmed"],
-   note: "The ACL Anthology publishes no search endpoint, so this reads one venue and year of its published metadata and filters it here. To search the whole Anthology at once, the package ships a command-line collector that works offline."},
-  {key: "gov", icon: "society", label: "Government & Documents",
-   detail: "Legislation, debates, reports, official statements",
-   plat: [],
-   note: "No government or intergovernmental body offers a public API a web page may call directly. These are collected on the MARSAD platform, or downloaded by hand and loaded here with Upload a dataset."},
-  {key: "video", icon: "react", label: "Video & Podcasts",
-   detail: "Videos, the comments under them, spoken-word sources",
-   plat: ["youtube"],
-   note: "Transcripts are not available through any public API. Download the captions from the platform itself, or transcribe the audio, then load the text here."},
-  {key: "data", icon: "all", label: "Open Data & Datasets",
-   detail: "Datasets, their licences and how they are used",
-   plat: ["huggingface", "zenodo", "openlibrary"],
-   note: "Kaggle, Data.gov and the World Bank need either a key or a server, so they are collected on the MARSAD platform."}
+  {key: "social", icon: "people", label: "Social Media & Discussions", detail: "Posts, comments, accounts and engagement"},
+  {key: "news", icon: "report", label: "News & Web", detail: "Coverage, outlets, encyclopedias and pages"},
+  {key: "academic", icon: "spread", label: "Academic Research", detail: "Papers, abstracts, venues and citations"},
+  {key: "public", icon: "society", label: "Public Data & Institutions", detail: "Statistics, legislation, documents and datasets"},
 ];
-
+// What the researcher has to supply. None of these says a collector exists.
+const ACCESS = {public: "Public, no key", key: "Free API key", connect: "Connect account", approval: "Research approval", restricted: "Restricted"};
+// How far the collector has got. None of these says what access it needs.
+const STATE = {operational: ["Operational", "Collected end to end against the live provider and the rows checked."], pilot: ["Pilot", "The collector is written and tested here against recorded replies. Whether the live provider answers a published page is settled only when you run it."], planned: ["Planned", "In the directory with its access route documented. No collector yet."], unavailable: ["Not generally available", "The provider's own rules keep this out of a shared hosted service, whatever approval an individual researcher holds."]};
+const STATE_CLS = {operational: "ready", pilot: "key", planned: "approval", unavailable: "approval"};
 const catOf = (key) => COLLECT_CATS.filter(c => c.key === key)[0];
-const methodsOf = (plat) => ((COLLECT_PLATFORMS[plat] || {}).methods) || [];
-const methodCount = (cat) => cat.plat.reduce((n, p) => n + methodsOf(p).length, 0);
+const srcOf = (key) => SOURCES[key];
+const methodsOf = (key) => ((SOURCES[key] || {}).methods) || [];
+const placedIn = (key, cat) => ((SOURCES[key] || {}).cats || []).filter(c => c[0] === cat).map(c => c[1]);
+// Keys in one category: featured first, then the rest, registry order within each.
+function sourcesIn(cat, tab) {
+  let keys = Object.keys(SOURCES).filter(k => placedIn(k, cat).length);
+  if (tab === "featured") keys = keys.filter(k => placedIn(k, cat)[0]);
+  if (tab === "other") keys = keys.filter(k => !placedIn(k, cat)[0]);
+  return keys.sort((a, b) => (placedIn(b, cat)[0] || 0) - (placedIn(a, cat)[0] || 0));
+}
+const methodCount = (cat) => sourcesIn(cat.key, "all").reduce((n, k) => n + methodsOf(k).length, 0);
+// The access label a source asks for, and the state its collector is in. A proxy on the user's own
+// server does not change either one: it changes only whether the request can leave the browser.
+function accessOf(key) {
+  const s = SOURCES[key];
+  return s ? ACCESS[s.access] || ACCESS.public : ACCESS.public;
+}
+function stateOf(key) {
+  const s = SOURCES[key];
+  if (!s) return STATE.planned;
+  return STATE[s.state] || STATE.planned;
+}
+// One source matches a search when the words appear in its name, what it holds, its category or
+// what it asks of you. Every word has to match something.
+function searchSources(q) {
+  const words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  return Object.keys(SOURCES).filter(k => {
+    const s = SOURCES[k];
+    const hay = [k, s.name, trUI(s.name), s.blurb, trUI(s.blurb), s.value, trUI(s.value),
+                 ACCESS[s.access], trUI(ACCESS[s.access]), STATE[s.state][0], trUI(STATE[s.state][0]),
+                 ...s.cats.map(c => { const o = catOf(c[0]); return o ? o.label + " " + trUI(o.label) : ""; }),
+                 ...methodsOf(k).map(m => m[2] + " " + trUI(m[2]))].join(" ").toLowerCase();
+    return words.every(w => hay.includes(w));
+  });
+}
+// <<< GENERATED SOURCES END
+
 // The method in play: whichever of this platform's methods matches the collector and mode on state.
 function methodNow(plat) {
   const all = methodsOf(plat);
@@ -2062,6 +2271,11 @@ async function runCollect() {
     if (!opts.key) { collectMsg(esc(trUI("This source needs a key. Paste yours above.")), "bad"); return; }
     setKey(COLLECT_SRC, opts.key, !!($("#c-remember") || {}).checked);
   }
+  if (spec.viaServer && !proxyUrl()) {
+    collectMsg(esc(trUI("This source refuses browsers, so it needs the small proxy on your own server. Set its address in Settings, under Collecting through your server.")), "bad");
+    return;
+  }
+  VIA_SERVER = !!(proxyUrl() && (spec.viaServer || proxyAll()));
   COLLECTING = true;
   const btn = $("#c-go"); if (btn) { btn.disabled = true; btn.textContent = trUI("Collecting..."); }
   collectMsg(esc(trUI("Asking the source...")), "");
@@ -2080,7 +2294,7 @@ async function runCollect() {
     const shown = (spec.short ? spec.short(q, opts) : q) || opts.instance || "all";
     const tag = (COLLECT_MODE ? COLLECT_MODE + "-" : "") + shown;
     const name = COLLECT_SRC + "-" + tag.replace(/[^\w؀-ۿ-]+/g, "_").slice(0, 48) + "-" + stamp + ".csv";
-    const plat = COLLECT_PLATFORMS[COLLECT_PLAT] || {};
+    const plat = srcOf(COLLECT_PLAT) || {};
     files.length = 0;
     loadMode = "combine";
     files.push({name, label: (plat.name || spec.label) + (q ? ": " + shown.slice(0, 40) : ""),
@@ -2092,43 +2306,144 @@ async function runCollect() {
     collectMsg(esc(e && e.plain ? e.message : trUI("Collecting did not work: ") + ((e && e.message) || e)), "bad");
   } finally {
     COLLECTING = false;
+    VIA_SERVER = false;
     if (btn) { btn.disabled = false; btn.textContent = trUI("Collect"); }
   }
 }
 
-// --- step 1: what would you like to collect? ------------------------------------------------------
-function collectCats() {
-  const card = (c) => {
-    const names = c.plat.map(p => COLLECT_PLATFORMS[p].name).join(", ");
-    const n = c.plat.length, m = methodCount(c);
-    const count = n ? `${n} ${trUI(n === 1 ? "platform" : "platforms")}, ${m} ${trUI(m === 1 ? "method" : "methods")}`
-                    : trUI("No collector yet");
-    return `<button class="catcard${n ? "" : " empty"}" data-act="ccat" data-cat="${c.key}">
-      <span class="cathead"><span class="explore-icon">${ico(c.icon, "")}</span>
-        <span class="catcount">${esc(count)}</span></span>
-      <span class="cattitle">${esc(trUI(c.label))}</span>
-      <span class="catdesc">${esc(names || trUI(c.detail))}</span></button>`;
-  };
-  return `<p>${esc(trUI("Pick what you are after, then the platform. Each collector runs here, in this page."))}</p>
-    <div class="catgrid">${COLLECT_CATS.map(card).join("")}</div>`;
+// --- step 1: the directory ------------------------------------------------------------------------
+// Four categories, and three ways to filter them: Featured, All sources, Other sources. A category
+// tile narrows the directory; the search field cuts across all four.
+const TABS = [["featured", "Featured"], ["all", "All sources"], ["other", "Other sources"]];
+const PANEL_SHOWN = 5;
+
+function srcCard(key, cat) {
+  const s = srcOf(key), on = key === COLLECT_PLAT;
+  const st = stateOf(key), n = methodsOf(key).length;
+  const meta = n ? `${n} ${trUI(n === 1 ? "method" : "methods")}` : trUI("No collector yet");
+  return `<button class="platcard${on ? " on" : ""}" data-act="cplat" data-plat="${key}"${cat ? ` data-cat="${cat}"` : ""} aria-pressed="${on}">
+    <span class="platmark" aria-hidden="true" style="background:${s.tint[0]};color:${s.tint[1]}">${esc(s.mark)}</span>
+    <span class="platname">${esc(trUI(s.name))}</span>
+    <span class="platblurb">${esc(trUI(s.blurb))}</span>
+    <span class="platmeta"><span class="badge ${STATE_CLS[s.state]} platstate">${esc(trUI(st[0]))}</span>
+      <span class="platacc">${esc(trUI(accessOf(key)))}</span>
+      ${s.server ? `<span class="platsrv">${esc(trUI(proxyUrl() ? "Via your server" : "Needs your server"))}</span>` : ""}
+      <span class="platn">${esc(meta)}</span></span></button>`;
 }
 
-// --- step 2: choose a platform --------------------------------------------------------------------
-function collectPlatforms(cat) {
-  const card = (key) => {
-    const p = COLLECT_PLATFORMS[key], on = key === COLLECT_PLAT;
-    const [cls, label] = NEED[p.need] || NEED.open;
-    const n = p.methods.length;
-    return `<button class="platcard${on ? " on" : ""}" data-act="cplat" data-plat="${key}" aria-pressed="${on}">
-      <span class="platmark" aria-hidden="true" style="background:${p.tint[0]};color:${p.tint[1]}">${esc(p.mark)}</span>
-      <span class="platname">${esc(p.name)}</span>
-      <span class="platblurb">${esc(trUI(p.blurb))}</span>
-      <span class="platmeta"><span>${n} ${esc(trUI(n === 1 ? "method" : "methods"))}</span>
-        <span class="badge ${cls} platneed">${esc(trUI(label))}</span></span></button>`;
+function statesKey() {
+  const row = ([k, v]) => `<li><span class="badge ${STATE_CLS[k]}">${esc(trUI(v[0]))}</span> ${esc(trUI(v[1]))}</li>`;
+  return `<details class="srcmore"><summary>${esc(trUI("What the two labels mean"))}</summary>
+    <p class="small-print">${esc(trUI("Every source carries two labels that say different things. The first is how far its collector has got here. The second is what the provider asks of you before any request can be made at all."))}</p>
+    <ul class="statekey">${Object.entries(STATE).map(row).join("")}</ul>
+    <p class="small-print">${esc(trUI("Placement as Featured is an editorial choice about the directory, not a judgement of scientific worth. Everything in Other sources is reachable by search and by its category."))}</p>
+  </details>`;
+}
+
+function dirTabs() {
+  const counts = {featured: 0, all: 0, other: 0};
+  COLLECT_CATS.forEach(c => TABS.forEach(([t]) => { counts[t] += sourcesIn(c.key, t).length; }));
+  const btn = ([t, label]) => `<button class="methodbtn${COLLECT_TAB === t ? " on" : ""}" data-act="ctab" data-tab="${t}"
+      aria-pressed="${COLLECT_TAB === t}">${esc(trUI(label))} <span class="tabn">${counts[t]}</span></button>`;
+  return `<div class="methodrow" role="group" aria-label="${esc(trUI("Filter the directory"))}">${TABS.map(btn).join("")}</div>`;
+}
+
+function dirSearch() {
+  return `<label class="cq dirfind" for="c-find">${esc(trUI("Search every source"))}
+    <input id="c-find" type="search" value="${esc(COLLECT_Q)}" spellcheck="false"
+           placeholder="${esc(trUI("a name, a kind of data, a place, a task"))}"></label>`;
+}
+
+function dirTiles() {
+  const tile = (c) => {
+    const f = sourcesIn(c.key, "featured").length, o = sourcesIn(c.key, "other").length;
+    const m = methodCount(c);
+    return `<button class="catcard${COLLECT_CAT === c.key ? " on" : ""}" data-act="ccat" data-cat="${c.key}">
+      <span class="cathead"><span class="explore-icon">${ico(c.icon, "")}</span>
+        <span class="catcount">${esc(`${f} ${trUI("featured")}, ${o} ${trUI("other")}`)}</span></span>
+      <span class="cattitle">${esc(trUI(c.label))}</span>
+      <span class="catdesc">${esc(trUI(c.detail))}</span>
+      <span class="catmethods">${esc(m ? `${m} ${trUI(m === 1 ? "method ready" : "methods ready")}` : trUI("No collector yet"))}</span></button>`;
   };
-  return `<h2 class="srcsub">${esc(trUI("Choose a platform"))}</h2>
-    <div class="platgrid">${cat.plat.map(card).join("")}</div>
-    <p class="small-print">${esc(trUI("A badge says what a platform asks of you, not that it is known to be working: whether a provider accepts a call from a web page is settled only when you run it. If one refuses, the page says so and collects nothing."))}</p>`;
+  return `<div class="catgrid">${COLLECT_CATS.map(tile).join("")}</div>`;
+}
+
+function collectCats() {
+  return `${dirTiles()}
+    ${dirSearch()}
+    ${COLLECT_Q ? "" : dirTabs()}
+    ${COLLECT_Q ? dirResults() : dirPanels()}
+    ${statesKey()}`;
+}
+
+// A search cuts across the categories and the tabs: one flat list, every word matched.
+function dirResults() {
+  const hits = searchSources(COLLECT_Q);
+  if (!hits.length)
+    return `<p class="small-print">${esc(trUI("Nothing matches that. Try one word, or clear the search to browse by category."))}</p>`;
+  return `<h2 class="srcsub">${esc(`${hits.length} ${trUI(hits.length === 1 ? "source found" : "sources found")}`)}</h2>
+    <div class="platgrid">${hits.map(k => srcCard(k, "")).join("")}</div>`;
+}
+
+// The landing view: one panel per category, cut to five, with a link to the rest.
+function dirPanels() {
+  const panel = (c) => {
+    const keys = sourcesIn(c.key, COLLECT_TAB);
+    if (!keys.length)
+      return `<section class="dirpanel"><h2 class="srcsub">${esc(trUI(c.label))}</h2>
+        <p class="small-print">${esc(trUI("Nothing in this filter for this category."))}</p></section>`;
+    const more = keys.length - PANEL_SHOWN;
+    return `<section class="dirpanel"><h2 class="srcsub">${esc(trUI(c.label))}
+        <span class="paneln">${keys.length}</span></h2>
+      <div class="platgrid">${keys.slice(0, PANEL_SHOWN).map(k => srcCard(k, c.key)).join("")}</div>
+      ${more > 0 ? `<button class="linkbtn" data-act="ccat" data-cat="${c.key}">${esc(`${trUI("See all")} ${keys.length} ${trUI("in")} ${trUI(c.label)}`)} ›</button>` : ""}
+    </section>`;
+  };
+  return COLLECT_CATS.map(panel).join("");
+}
+
+// One category, filtered by the tab in play.
+function collectDirectory(cat) {
+  const keys = sourcesIn(cat.key, COLLECT_TAB);
+  return `${dirTiles()}
+    ${dirSearch()}
+    ${COLLECT_Q ? "" : dirTabs()}
+    ${COLLECT_Q ? dirResults() : (keys.length
+      ? `<h2 class="srcsub">${esc(trUI("Choose a source"))} <span class="paneln">${keys.length}</span></h2>
+         <div class="platgrid">${keys.map(k => srcCard(k, cat.key)).join("")}</div>`
+      : `<p class="small-print">${esc(trUI("Nothing in this filter for this category. Switch to All sources."))}</p>`)}
+    ${statesKey()}`;
+}
+
+// A source with no collector yet. Everything known about getting at it, and no button that lies.
+function collectDetail(key) {
+  const s = srcOf(key), st = stateOf(key);
+  const docs = s.docs ? `<a href="${s.docs}" target="_blank" rel="noopener">${esc(trUI("Provider documentation"))} ↗</a>` : "";
+  const platform = s.state === "unavailable" ? "" :
+    `<p class="small-print">${esc(trUI("Collection for this one belongs on the MARSAD platform, where a server can make the request and hold the credentials."))}
+       <a href="${MARSAD_PLATFORM}" target="_blank" rel="noopener">${esc(trUI("Open the MARSAD platform"))} ↗</a></p>`;
+  return `${srcBar(key)}
+    <div class="srcdetail">
+      <h2 class="srcsub">${esc(trUI("What it holds"))}</h2>
+      <p>${esc(trUI(s.value))}</p>
+      <h2 class="srcsub">${esc(trUI("What it asks of you"))}</h2>
+      <p><span class="badge key">${esc(trUI(accessOf(key)))}</span>${s.server
+        ? ` <span class="badge key">${esc(trUI(proxyUrl() ? "Via your server" : "Needs your server"))}</span>` : ""}</p>
+      <p>${esc(trUI(s.note))}</p>
+      <h2 class="srcsub">${esc(trUI("Where the collector stands"))}</h2>
+      <p><span class="badge ${STATE_CLS[s.state]}">${esc(trUI(st[0]))}</span></p>
+      <p>${esc(trUI(st[1]))}</p>
+      ${platform}
+      <p class="small-print">${docs}</p>
+    </div>`;
+}
+
+function srcBar(key) {
+  const s = srcOf(key);
+  return `<div class="platbar">
+    <button class="linkbtn" data-act="cplatback">‹ ${esc(trUI("All sources"))}</button>
+    <span class="platnow"><span class="platmark small" aria-hidden="true" style="background:${s.tint[0]};color:${s.tint[1]}">${esc(s.mark)}</span>${esc(trUI(s.name))}</span>
+  </div>`;
 }
 
 // --- step 3: choose a method, then fill the form --------------------------------------------------
@@ -2145,17 +2460,16 @@ function collectMethods(plat) {
 
 function collectForm() {
   const cat = catOf(COLLECT_CAT);
-  if (!cat) return collectCats();
-  if (!cat.plat.length)
-    return `<p>${esc(trUI(cat.note))}</p>
-      <a class="btn wide" href="${MARSAD_PLATFORM}" target="_blank" rel="noopener">${esc(trUI("Open the MARSAD platform"))} ↗</a>`;
-  if (!COLLECT_PLAT || !cat.plat.includes(COLLECT_PLAT)) return collectPlatforms(cat);
+  // No source chosen: the directory, either the whole of it or one category.
+  if (!COLLECT_PLAT || !srcOf(COLLECT_PLAT)) return cat ? collectDirectory(cat) : collectCats();
+  // A source with no collector: what is known about reaching it, and no button that lies.
+  if (!methodsOf(COLLECT_PLAT).length) return collectDetail(COLLECT_PLAT);
 
-  const plat = COLLECT_PLATFORMS[COLLECT_PLAT];
+  const plat = srcOf(COLLECT_PLAT);
   const m = methodNow(COLLECT_PLAT);
   if (m && (m[0] !== COLLECT_SRC || (m[1] || "") !== (COLLECT_MODE || ""))) pickMethod(m);
   const spec = LIVE[COLLECT_SRC];
-  if (!spec) return collectPlatforms(cat);
+  if (!spec) return cat ? collectDirectory(cat) : collectCats();
   const mode = COLLECT_MODE;
   const opt = (v, l, on) => `<option value="${v}"${on ? " selected" : ""}>${esc(l)}</option>`;
   const ph = (m && m[3]) || MODE_PH[mode] || (spec.q && spec.q.ph) || "a word, a phrase or a hashtag";
@@ -2200,10 +2514,7 @@ function collectForm() {
     </div>`;
   const qRow = spec.noq ? "" :
     `<label class="cq">${esc(trUI(qlab))}<input id="c-q" placeholder="${esc(trUI(ph))}" spellcheck="false"></label>`;
-  return `<div class="platbar">
-      <button class="linkbtn" data-act="cplatback">‹ ${esc(trUI("All platforms"))}</button>
-      <span class="platnow"><span class="platmark small" aria-hidden="true" style="background:${plat.tint[0]};color:${plat.tint[1]}">${esc(plat.mark)}</span>${esc(plat.name)}</span>
-    </div>
+  return `${srcBar(COLLECT_PLAT)}
     ${collectMethods(COLLECT_PLAT)}
     <div class="cform">
       ${qRow}
@@ -2217,7 +2528,8 @@ function collectForm() {
       <p class="small-print">${esc(trUI(spec.note))} <a href="#" data-act="collecthelp">${esc(trUI("Read the full page on this source"))} ›</a></p>
       <p class="small-print">${esc(trUI("Licence recorded on every row:"))} <code dir="ltr">${esc(spec.rights)}</code>. ${esc(trUI("Collecting text is not permission to republish it."))}</p>
       <p class="small-print">${esc(trUI("Your search goes to this provider, and so does your key where one is needed. Nothing is sent to MARSAD, and your key is never written into the collected file."))}${spec.key && spec.key.inUrl ? " " + esc(trUI("This provider wants the key in the web address, so it can appear in your browser history. Use a key you can revoke.")) : ""}</p>
-      ${cat.note ? `<p class="small-print">${esc(trUI(cat.note))}</p>` : ""}
+      <p class="small-print"><span class="badge ${STATE_CLS[plat.state]}">${esc(trUI(stateOf(COLLECT_PLAT)[0]))}</span> ${esc(trUI(stateOf(COLLECT_PLAT)[1]))}</p>
+      ${plat.docs ? `<p class="small-print"><a href="${plat.docs}" target="_blank" rel="noopener">${esc(trUI("Provider documentation"))} ↗</a></p>` : ""}
     </details>`;
 }
 const MODE_PH = {search: "a word or a topic", article: "the exact article title",
@@ -2246,7 +2558,7 @@ function sourcesPanel(again) {
     `<button class="btn small" data-act="sample" data-file="${f}"${name ? ` data-name="${name}"` : ""}${tip ? ` data-tip="${esc(tip)}"` : ""}>${esc(label)}</button>`;
   // Collecting takes over the panel: the four entry cards collapse to a breadcrumb and a Back link,
   // so the platform choice and its form get the room instead.
-  const inCollect = SRC === "collect" && COLLECT_CAT;
+  const inCollect = SRC === "collect" && (COLLECT_CAT || COLLECT_PLAT);
   const cat = inCollect ? catOf(COLLECT_CAT) : null;
   const trail = inCollect ? `<div class="catbar">
       <button class="linkbtn" data-act="ccatback">\u2039 ${esc(trUI("Back"))}</button>
@@ -2255,7 +2567,10 @@ function sourcesPanel(again) {
         <span aria-hidden="true">/</span>
         <button class="linkbtn" data-act="ccatback">${esc(trUI("Collect online data"))}</button>
         <span aria-hidden="true">/</span>
-        <b>${esc(trUI(cat ? cat.label : ""))}</b>
+        ${COLLECT_PLAT && cat ? `<button class="linkbtn" data-act="cplatback">${esc(trUI(cat.label))}</button>
+        <span aria-hidden="true">/</span>
+        <b>${esc(trUI(srcOf(COLLECT_PLAT).name))}</b>`
+        : `<b>${esc(trUI(cat ? cat.label : ""))}</b>`}
       </nav>
     </div>` : "";
   return `<div class="panel">
@@ -2341,12 +2656,22 @@ function startPage() {
   const again = !!SCAN;
   return `${again ? crumbs([["Overview", "overview"], ["Your files", "files"]], ["Overview", "overview"]) : ""}${head(again ? "Your files" : "Analyse a dataset", again ? "Add another file to compare, or load a new one. Files are read inside this page and are not uploaded." : "Choose how you want to analyse your data.")}
   ${sourcesPanel(again)}
-  ${PL && !again ? studiesPanel() : ""}
   ${PL && !again ? `<h2 class="section-heading">What you can explore</h2><div class="explore-grid">${exploreCards()}</div>` : ""}`;
 }
 function bindStart() {
   const q = $("#c-q");
   if (q) q.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); runCollect(); } };
+  const find = $("#c-find");
+  if (find) {
+    find.oninput = () => {
+      const at = find.selectionStart;
+      COLLECT_Q = find.value;
+      render();
+      const back = $("#c-find");
+      if (back) { back.focus(); try { back.setSelectionRange(at, at); } catch (e) { /* a search input may refuse a caret */ } }
+    };
+    find.onkeydown = e => { if (e.key === "Escape") { COLLECT_Q = ""; render(); const b = $("#c-find"); if (b) b.focus(); } };
+  }
   const d = $("#drop"); if (!d) return;
   d.onclick = () => $("#file").click(); d.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#file").click(); } };
   ["dragover", "dragenter"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("over"); }));
