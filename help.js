@@ -53,7 +53,7 @@
     }).join("");
     const fg = [...new Set(D.faq.map(f => f.group))];
     const faq = `<h2 class="hc-group" id="hc-faq">${tx("Frequently asked questions", "الأسئلة الشائعة")}</h2><div class="hc-faq">${fg.map(g => `<div><h3>${esc(g)}</h3>${D.faq.filter(f => f.group === g).map(f => `<details><summary>${esc(f.q)}</summary><p>${f.a}</p></details>`).join("")}</div>`).join("")}</div>`;
-    return `<h1 class="page-title">${tx("Help center", "مركز المساعدة")}</h1>${searchBox()}${groups}${faq}<p class="hc-foot">MARSAD Analytics v${esc(D.version)} documentation</p>`;
+    return `<h1 class="page-title">${tx("Help center", "مركز المساعدة")}</h1>${searchBox()}${groups}${faq}<p class="hc-foot">${tx(`MARSAD Analytics v${esc(D.version)} documentation`, `دليل MARSAD Analytics الإصدار ${esc(D.version)}`)}</p>`;
   }
 
   function category(id) {

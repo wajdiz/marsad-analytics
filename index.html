@@ -179,6 +179,11 @@ html[dir="rtl"] .drawer{box-shadow:6px 0 24px rgba(0,0,0,.14)}
 .srccard.on{border-color:var(--teal);border-style:solid;box-shadow:0 0 0 1px var(--teal),var(--shadow);background:var(--k-n-100)}
 .srcpick{color:var(--teal);display:inline-flex}
 .srcpick svg{width:22px;height:22px}
+.cform input:disabled,.cform select:disabled,.ckey input:disabled{opacity:.55;cursor:not-allowed}
+.cblock{border:1px solid var(--k-amb-40-100);background:var(--k-amb-95-100);border-radius:10px;padding:12px 14px;margin:0 0 14px}
+.cblock-h{margin:0 0 6px;font-weight:600;color:var(--k-blu-25-40)}
+@media (prefers-color-scheme:dark){.cblock{background:var(--k-yel-10-40);color:var(--k-yel-70-80)}.cblock-h{color:var(--k-yel-70-80)}}
+.dlbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--border);margin-top:18px;padding-top:14px}
 .srcopen{border-top:1px solid var(--border);margin-top:18px;padding-top:16px}
 .srcopen-h{display:flex;align-items:center;gap:9px;font-size:17px;color:var(--k-blu-25-40);margin:0 0 12px}
 .srcopen-h svg{width:20px;height:20px;color:var(--k-tea-30-80)}
@@ -599,7 +604,8 @@ body.bigtext .explore-label{font-size:19px}
 .ch-hello{display:flex;justify-content:center;padding:6px 0 2px}
 .ch-hello img{width:96px;height:auto;display:block}
 #chat.open ~ #chatfab,body.chatopen #chatfab{display:none}
-.pill.ondev{display:inline-flex;align-items:center;gap:7px}
+.pill.ondev{display:none;align-items:center;gap:7px}
+.pill.ondev.busy,.pill.ondev.err{display:inline-flex}
 .pill.ondev .lock{font-size:13px}
 .pill.ondev .dot{width:9px;height:9px;border-radius:50%;background:var(--k-grn-65-40);display:none}
 .pill.ondev.busy .dot{display:inline-block;background:var(--k-amb-65-80)}
@@ -634,7 +640,7 @@ body.bigtext .explore-label{font-size:19px}
 <button class="skip" id="skiplink">Skip to content</button>
 <header class="appbar">
   <div class="branding"><img class="brand-mark" src="assets/marsad-logo-128.png" alt="" width="34" height="34" decoding="async"><div><div class="brand">MARSAD Analytics</div></div></div>
-  <div class="top-right"><span id="filebar"></span><button class="sizebtn" id="helpbtn" title="Guides for every analysis, questions and answers">? Help</button><button class="sizebtn" id="langbtn" lang="ar" title="Show the menus in Arabic">العربية</button><button class="sizebtn" id="lookbtn" data-act="settings" title="Settings"><span class="gear">&#9881;</span><span class="lbl">Settings</span></button><span class="pill ondev" id="engine" title="Your files stay on this computer. Status: Ready."><span class="lock">&#128274;</span><span class="ondev-lbl hide-sm">On your device</span><span class="dot" aria-hidden="true"></span><span class="ondev-state"></span></span></div>
+  <div class="top-right"><span id="filebar"></span><button class="sizebtn" id="helpbtn" title="Guides for every analysis, questions and answers">Help</button><button class="sizebtn" id="langbtn" lang="ar" title="Show the menus in Arabic">العربية</button><button class="sizebtn" id="lookbtn" data-act="settings" title="Settings"><span class="gear">&#9881;</span><span class="lbl">Settings</span></button><span class="pill ondev" id="engine" title="Status: Ready."><span class="dot" aria-hidden="true"></span><span class="ondev-state"></span></span></div>
 </header>
 <nav class="mobile-nav" id="mobileNav" aria-label="Sections"></nav>
 <div class="shell">
@@ -671,6 +677,7 @@ body.bigtext .explore-label{font-size:19px}
 
 const SITE = "/home/pyodide/site";
 const PKGS = ["numpy", "pandas", "scipy", "scikit-learn", "regex", "msgpack", "tzdata", "packaging"];
+const BUILD = "2026-11-11 11:15 UTC";   // >>> BUILD STAMP <<< replaced by build_web_bundle.sh
 let VERSION = "", CH = null, V = null, DR = null, SAMPLE = null, py = null, W = null, REG = null, PL = null, SCAN = null, LEX = [], dl = null, wordfreq = false;
 const files = [], results = {}, params = {}, saved = new Set(), fileSel = {};
 let loadMode = "combine";
@@ -694,30 +701,11 @@ const MARSAD_RESOURCES = "https://marsadlab.com/resources.html";
 const ZS_URL = "https://github.com/digitalmethodsinitiative/zeeschuimer/releases";
 // Where the platform's own data collection lives. Change this one line if the address moves.
 const MARSAD_PLATFORM = "https://dev.marsadlab.com/";
-// What the MARSAD platform's own data collection section can run. The third value is how a source is
-// opened up: "free" needs nothing, "key" needs an API key the administrator holds, "approval" needs the
-// provider's own permission or an account you have connected, "ready" is already running.
-const NEWS_COLLECTORS = [
-  ["GDELT", "No key", "free"], ["Publisher RSS", "Approved feeds", "approval"],
-  ["Media Cloud", "Key and collections", "key"], ["Event Registry", "Key", "key"],
-  ["GNews", "Key", "key"], ["NewsData.io", "Key", "key"], ["NewsAPI.org", "Key", "key"],
-  ["The Guardian", "Key", "key"], ["New York Times", "Key", "key"], ["Currents", "Key", "key"],
-  ["APITube", "Key", "key"], ["Perigon", "Key", "key"], ["Webz.io", "Key", "key"],
-  ["Mediastack", "Key", "key"]];
-const SOCIAL_COLLECTORS = [
-  ["Mastodon", "Approved instances", "approval"], ["Tumblr", "Key", "key"],
-  ["X", "Paid API access", "key"], ["Threads", "Approved search", "approval"],
-  ["Facebook", "Your connected Pages", "approval"],
-  ["Instagram", "Your connected accounts", "approval"],
-  ["TikTok", "Research API approval", "approval"],
-  ["Bluesky", "Already running", "ready"], ["Reddit", "Already running", "ready"],
-  ["Telegram", "Already running", "ready"], ["YouTube", "Already running", "ready"]];
 let SRC = "own";
 let COLLECT_SRC = "";
 let COLLECT_CAT = "";             // "" shows the whole directory rather than one category
 let COLLECT_PLAT = "";            // the source picked, whether from a category or from a search
 let COLLECT_TAB = "featured";     // which directory filter is in play: featured, all, other
-let COLLECT_Q = "";               // the directory search, which cuts across every category
 let COLLECT_MODE = "";            // which of a source's modes is picked, for the ones that have modes
 // Venue codes the Anthology uses for its XML files, offered as suggestions; any code can be typed.
 const ACL_VENUES = ["acl", "emnlp", "naacl", "eacl", "coling", "lrec", "lrec-coling", "arabicnlp",
@@ -788,7 +776,7 @@ function engine(t, cls) {
   const ready = cls === "ready";
   e.className = "pill ondev" + (cls === "err" ? " err" : ready ? "" : " busy");
   const st = e.querySelector(".ondev-state"); if (st) st.textContent = ready ? "" : trUI(t);
-  e.title = trUI("Your files stay on this computer.") + " " + trUI("Status:") + " " + trUI(ready ? "Ready" : t);
+  e.title = trUI("Status:") + " " + trUI(ready ? "Ready" : t);
 }
 function loadScript(src) { return new Promise((ok, bad) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => bad(new Error("could not load " + src)); document.head.appendChild(s); }); }
 async function bytes(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + ": " + r.status); return new Uint8Array(await r.arrayBuffer()); }
@@ -928,8 +916,8 @@ window.addEventListener("scroll", hideTip, true);
 function go(v) {
   // Overview was a dead click from inside the collect flow: the page re-rendered into whatever
   // source was still selected, so nothing on screen changed. Leaving the flow clears it.
-  if (v.page === "overview" && (COLLECT_CAT || COLLECT_PLAT || COLLECT_Q)) {
-    COLLECT_CAT = ""; COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; COLLECT_Q = "";
+  if (v.page === "overview" && (COLLECT_CAT || COLLECT_PLAT)) {
+    COLLECT_CAT = ""; COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = "";
   }
   view = v; hideTip(); if (v.page === "card" && v.id) noteRecent(v.id); try { localStorage.setItem("marsad_last", JSON.stringify(v)); } catch (e) {} render(); window.scrollTo({top: 0}); try { history.replaceState(null, "", "#" + (v.page === "card" ? "c-" + v.id : v.page === "section" ? "s-" + v.section : v.page === "study" ? "q-" + v.id : v.page === "help" ? MarsadHelp.hashFor(v.route || {view: "home"}) : v.page)); } catch (e) {} }
 const helpRoute = k => ({page: "help", route: MarsadHelp.routeFromHash(k)});
@@ -990,6 +978,7 @@ function settingsPage(tab) {
   modal(trUI("Settings"), `<div class="settabs" role="tablist">${tabs.map(([k, l]) =>
       `<button role="tab" class="settab${SETTAB === k ? " on" : ""}" data-settab="${k}" aria-selected="${SETTAB === k}">${esc(trUI(l))}</button>`).join("")}</div>
     <div id="setbody">${SETTAB === "menu" ? customizeBody() : SETTAB === "collect" ? collectSettingsBody() : displayBody(big)}</div>
+    <p class="small-print" style="margin:14px 0 0" dir="ltr">MARSAD Analytics ${esc(VERSION || "?")} \u00b7 build ${esc(BUILD)}</p>
     <div class="opt-actions" style="gap:8px"><button class="btn" data-act="resetall">${esc(trUI("Reset all"))}</button>${SETTAB === "menu" ? `<button class="btn primary" id="cz-go">${esc(trUI("Apply"))}</button>` : ""}${SETTAB === "collect" ? `<button class="btn primary" id="px-go">${esc(trUI("Save"))}</button>` : ""}</div>`);
   document.querySelectorAll("[data-settab]").forEach(b => b.onclick = () => settingsPage(b.dataset.settab));
   if (SETTAB === "menu") bindCustomize();
@@ -1121,13 +1110,13 @@ function act(name, el) {
   if (["ccat", "ccatback", "cplat", "cplatback", "ctab", "cmethod"].includes(name)) setTimeout(toTop, 0);
   if (name === "ccat") {
     COLLECT_CAT = el.dataset.cat;
-    COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; COLLECT_Q = "";
+    COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = "";
     // A category chosen from the landing panels is a request to see all of it, not the five shown.
     if (COLLECT_TAB === "featured" && !sourcesIn(COLLECT_CAT, "featured").length) COLLECT_TAB = "all";
     render();
   }
   if (name === "ccatback") {
-    COLLECT_CAT = ""; COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; COLLECT_Q = "";
+    COLLECT_CAT = ""; COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = "";
     render();
   }
   if (name === "ctab") { COLLECT_TAB = el.dataset.tab; render(); }
@@ -1142,7 +1131,7 @@ function act(name, el) {
   if (name === "cplatback") {
     // The search that found this source is cleared too. Leaving it in place meant going back from
     // TikTok showed a list holding only TikTok, with no obvious way to reach anything else.
-    COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = ""; COLLECT_Q = "";
+    COLLECT_PLAT = ""; COLLECT_SRC = ""; COLLECT_MODE = "";
     render();
   }
   if (name === "srcback") {
@@ -1167,7 +1156,7 @@ function act(name, el) {
     const o = $(".srcopen"); if (o) o.scrollIntoView({block: "nearest", behavior: "smooth"});
     return;
   }
-  if (name === "settings") settingsPage();
+  if (name === "settings") settingsPage(el.dataset.settab || "");
   if (name === "customize") settingsPage("menu");
   if (name === "filters") filtersPage();
   if (name === "resetfilters") { const n = prepOpts(); FKEYS.forEach(k => delete n[k]); applyPrepare(n); }
@@ -1184,6 +1173,7 @@ function act(name, el) {
   if (name === "studydraft") { const q = PL.studies.find(x => x.id === el.dataset.id); draftReport(q.cards.filter(c => status({...plainOf(c), id: c}).ok)); }
   if (name === "openproject") $("#projfile").click();
   if (name === "openposts") showPosts(el.dataset.f, el.dataset.title || "");
+  if (name === "dldata") dlDataset();
 }
 
 // ------------------------------------------------------------------ pages
@@ -2278,18 +2268,6 @@ function stateOf(key) {
 }
 // One source matches a search when the words appear in its name, what it holds, its category or
 // what it asks of you. Every word has to match something.
-function searchSources(q) {
-  const words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
-  if (!words.length) return [];
-  return Object.keys(SOURCES).filter(k => {
-    const s = SOURCES[k];
-    const hay = [k, s.name, trUI(s.name), s.blurb, trUI(s.blurb), s.value, trUI(s.value),
-                 ACCESS[s.access], trUI(ACCESS[s.access]), STATE[s.state][0], trUI(STATE[s.state][0]),
-                 ...s.cats.map(c => { const o = catOf(c[0]); return o ? o.label + " " + trUI(o.label) : ""; }),
-                 ...methodsOf(k).map(m => m[2] + " " + trUI(m[2]))].join(" ").toLowerCase();
-    return words.every(w => hay.includes(w));
-  });
-}
 // <<< GENERATED SOURCES END
 
 // The method in play: whichever of this platform's methods matches the collector and mode on state.
@@ -2373,7 +2351,6 @@ async function runCollect() {
 // Four categories, and three ways to filter them: Featured, All sources, Other sources. A category
 // tile narrows the directory; the search field cuts across all four.
 const TABS = [["featured", "Featured"], ["all", "All sources"], ["other", "Other sources"]];
-const PANEL_SHOWN = 5;
 
 function srcCard(key, cat) {
   const s = srcOf(key), on = key === COLLECT_PLAT;
@@ -2394,7 +2371,7 @@ function statesKey() {
   return `<details class="srcmore"><summary>${esc(trUI("What the two labels mean"))}</summary>
     <p class="small-print">${esc(trUI("Every source carries two labels that say different things. The first is how far its collector has got here. The second is what the provider asks of you before any request can be made at all."))}</p>
     <ul class="statekey">${Object.entries(STATE).map(row).join("")}</ul>
-    <p class="small-print">${esc(trUI("Placement as Featured is an editorial choice about the directory, not a judgement of scientific worth. Everything in Other sources is reachable by search and by its category."))}</p>
+    <p class="small-print">${esc(trUI("Placement as Featured is an editorial choice about the directory, not a judgement of scientific worth. Everything in Other sources is reachable from its own category."))}</p>
   </details>`;
 }
 
@@ -2406,11 +2383,6 @@ function dirTabs() {
   return `<div class="methodrow" role="group" aria-label="${esc(trUI("Filter the directory"))}">${TABS.map(btn).join("")}</div>`;
 }
 
-function dirSearch() {
-  return `<label class="cq dirfind" for="c-find">${esc(trUI("Search every source"))}
-    <input id="c-find" type="search" value="${esc(COLLECT_Q)}" spellcheck="false"
-           placeholder="${esc(trUI("a name, a kind of data, a place, a task"))}"></label>`;
-}
 
 function dirTiles() {
   const tile = (c) => {
@@ -2428,48 +2400,21 @@ function dirTiles() {
 
 function collectCats() {
   return `${dirTiles()}
-    ${dirSearch()}
-    ${COLLECT_Q ? "" : dirTabs()}
-    ${COLLECT_Q ? dirResults() : dirPanels()}
+    <p class="small-print">${esc(trUI("A source that needs a key or an approval says so on its own card, and its help page explains what to ask for."))}</p>
     ${statesKey()}`;
 }
 
-// A search cuts across the categories and the tabs: one flat list, every word matched.
-function dirResults() {
-  const hits = searchSources(COLLECT_Q);
-  if (!hits.length)
-    return `<p class="small-print">${esc(trUI("Nothing matches that. Try one word, or clear the search to browse by category."))}</p>`;
-  return `<h2 class="srcsub">${esc(`${hits.length} ${trUI(hits.length === 1 ? "source found" : "sources found")}`)}</h2>
-    <div class="platgrid">${hits.map(k => srcCard(k, "")).join("")}</div>`;
-}
 
-// The landing view: one panel per category, cut to five, with a link to the rest.
-function dirPanels() {
-  const panel = (c) => {
-    const keys = sourcesIn(c.key, COLLECT_TAB);
-    if (!keys.length)
-      return `<section class="dirpanel"><h2 class="srcsub">${esc(trUI(c.label))}</h2>
-        <p class="small-print">${esc(trUI("Nothing in this filter for this category."))}</p></section>`;
-    const more = keys.length - PANEL_SHOWN;
-    return `<section class="dirpanel"><h2 class="srcsub">${esc(trUI(c.label))}
-        <span class="paneln">${keys.length}</span></h2>
-      <div class="platgrid">${keys.slice(0, PANEL_SHOWN).map(k => srcCard(k, c.key)).join("")}</div>
-      ${more > 0 ? `<button class="linkbtn" data-act="ccat" data-cat="${c.key}">${esc(`${trUI("See all")} ${keys.length} ${trUI("in")} ${trUI(c.label)}`)} ›</button>` : ""}
-    </section>`;
-  };
-  return COLLECT_CATS.map(panel).join("");
-}
 
 // One category, filtered by the tab in play.
 function collectDirectory(cat) {
   const keys = sourcesIn(cat.key, COLLECT_TAB);
   return `${dirTiles()}
-    ${dirSearch()}
-    ${COLLECT_Q ? "" : dirTabs()}
-    ${COLLECT_Q ? dirResults() : (keys.length
+    ${dirTabs()}
+    ${keys.length
       ? `<h2 class="srcsub">${esc(trUI("Choose a source"))} <span class="paneln">${keys.length}</span></h2>
          <div class="platgrid">${keys.map(k => srcCard(k, cat.key)).join("")}</div>`
-      : `<p class="small-print">${esc(trUI("Nothing in this filter for this category. Switch to All sources."))}</p>`)}
+      : `<p class="small-print">${esc(trUI("Nothing in this filter for this category. Switch to All sources."))}</p>`}
     ${statesKey()}`;
 }
 
@@ -2571,15 +2516,25 @@ function collectForm() {
     </div>`;
   const qRow = spec.noq ? "" :
     `<label class="cq">${esc(trUI(qlab))}<input id="c-q" placeholder="${esc(trUI(ph))}" spellcheck="false"></label>`;
+  // A provider that turns browsers away cannot be collected from this page alone. Say so above the form and
+  // keep the button off, rather than letting someone fill the form in and meet an error.
+  const needsServer = plat.server && !proxyUrl();
+  const blocked = !needsServer ? "" : `<div class="cblock">
+      <p class="cblock-h">${esc(trUI("This source cannot be collected from the browser"))}</p>
+      <p class="small-print">${esc(trUI(plat.note))}</p>
+      <p class="small-print">${esc(trUI("Set your server address in Settings, under Collecting, and this form starts working."))}
+        <button class="linkbtn" data-act="settings" data-settab="collect">${esc(trUI("Open Settings"))} \u203a</button></p>
+    </div>`;
   return `${srcBar(COLLECT_PLAT)}
     ${collectMethods(COLLECT_PLAT)}
-    <div class="cform">
+    ${blocked}
+    <div class="cform"${needsServer ? ' aria-disabled="true"' : ""}>
       ${qRow}
       ${extra.join("")}
       <label>${esc(trUI("How many"))}<input id="c-n" type="number" min="1" max="500" value="50"></label>
     </div>
     ${keyRow}
-    <button class="btn primary wide" id="c-go" data-act="runcollect"${W ? "" : " disabled"}>${esc(trUI("Collect"))}</button>
+    <button class="btn primary wide" id="c-go" data-act="runcollect"${W && !needsServer ? "" : " disabled"}>${esc(trUI(needsServer ? "Collect (needs your server)" : "Collect"))}</button>
     <div id="collectmsg"></div>
     <details class="srcmore"><summary>${esc(trUI("What this collects, and what you may do with it"))}</summary>
       <p class="small-print">${esc(trUI(spec.note))} <a href="#" data-act="collecthelp">${esc(trUI("Read the full page on this source"))} ›</a></p>
@@ -2615,6 +2570,9 @@ function sourcesPanel(again) {
     `<button class="btn small" data-act="sample" data-file="${f}"${name ? ` data-name="${name}"` : ""}${tip ? ` data-tip="${esc(tip)}"` : ""}>${esc(label)}</button>`;
   // Collecting takes over the panel: the four entry cards collapse to a breadcrumb and a Back link,
   // so the platform choice and its form get the room instead.
+  const dlbar = again ? `<div class="dlbar"><button class="btn small" data-act="dldata"
+      data-tip="Saves the table the analyses are reading, as a CSV file: your posts after cleaning, with the columns MARSAD derived from them.">${esc(trUI("Download data (CSV)"))}</button>
+    <span class="small-print">${esc(trUI("The rows being analysed now, including any filter you have set."))}</span></div>` : "";
   const inCollect = SRC === "collect" && (COLLECT_CAT || COLLECT_PLAT);
   const cat = inCollect ? catOf(COLLECT_CAT) : null;
   const trail = inCollect ? `<div class="catbar">
@@ -2632,6 +2590,7 @@ function sourcesPanel(again) {
   return `<div class="panel">
     ${inCollect ? trail : `<div class="srcgrid">${cards}</div>`}
     <div class="srcopen">${srcBody(again)}</div>
+    ${dlbar}
     <div class="srcsamples">
       <h2 class="srcsamples-h">${esc(trUI("Or try MARSAD with sample data"))}</h2>
       <div class="samples" style="margin-top:8px">
@@ -2672,16 +2631,13 @@ function srcBody(again) {
   }
   if (SRC === "collect") {
     const step = (n, t) => `<li><b>${esc(trUI("Step"))} ${n}.</b> ${t}</li>`;
-    const srcRow = ([name, need, state]) =>
-      `<li><span class="colname">${esc(name)}</span><span class="colneed badge ${state}">${esc(trUI(need))}</span></li>`;
     const deep = !!COLLECT_CAT;
     return (deep ? "" : head("download", "Collect online data")) + `
       ${collectForm()}
 
       ${deep ? "" : `<div class="zspanel">
-        <h3 class="srcsub">${esc(trUI("Or collect while you browse"))}</h3>
-        <p class="small-print">${esc(trUI("TikTok, Instagram, Threads and X allow no search at all from a web page. Zeeschuimer, a free Firefox extension from the Digital Methods Initiative, records the posts you see while you browse, and MARSAD reads what it saves."))}</p>
-        <details class="srcmore"><summary>${esc(trUI("How to use Zeeschuimer"))}</summary>
+        <details class="srcmore"><summary>${esc(trUI("Or collect while you browse"))}</summary>
+          <p class="small-print">${esc(trUI("TikTok, Instagram, Threads and X allow no search at all from a web page. Zeeschuimer, a free Firefox extension from the Digital Methods Initiative, records the posts you see while you browse, and MARSAD reads what it saves."))}</p>
           <ol class="srcsteps">
             ${step(1, `${esc(trUI("Install Zeeschuimer in Firefox from its releases page."))} <span class="small-print">${esc(trUI("Firefox-based browsers only. It does not work in Chrome, Edge or Safari."))}</span>`)}
             ${step(2, esc(trUI("Click the Zeeschuimer button in the toolbar, switch it on for the site, then browse normally. Everything you scroll past is recorded.")))}
@@ -2694,15 +2650,7 @@ function srcBody(again) {
         </details>
       </div>
 
-      <details class="srcmore"><summary>${esc(trUI("Sources that need a key or an approval"))}</summary>
-        <p class="small-print">${esc(trUI("These need a credential, so they cannot run in a web page: a key typed into one can be read by any script on it. They run in the MARSAD platform instead, which holds the keys on its server and saves you a dataset to load here. Your administrator decides which are switched on."))}</p>
-        <div class="colgrid">
-          <div><h4>${esc(trUI("News"))} <span class="small-print">(${NEWS_COLLECTORS.length})</span></h4><ul class="collist">${NEWS_COLLECTORS.map(srcRow).join("")}</ul></div>
-          <div><h4>${esc(trUI("Social"))} <span class="small-print">(${SOCIAL_COLLECTORS.length})</span></h4><ul class="collist">${SOCIAL_COLLECTORS.map(srcRow).join("")}</ul></div>
-        </div>
-        <p class="small-print">${esc(trUI("The news routes collect metadata: the headline, the provider's own summary, the link, the outlet, the language and the time. They do not collect the article text, so word, topic and tone analyses describe how an item was billed rather than what it said. MARSAD says so above the numbers when it reads such a file."))}</p>
-        <a class="btn wide" href="${MARSAD_PLATFORM}" target="_blank" rel="noopener">${esc(trUI("Open the MARSAD platform"))} \u2197</a>
-      </details>`}`;
+      `}`;
   }
   const o = {
     repository: ["society", "Explore MARSAD Repository",
@@ -2726,17 +2674,9 @@ function startPage() {
 function bindStart() {
   const q = $("#c-q");
   if (q) q.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); runCollect(); } };
-  const find = $("#c-find");
-  if (find) {
-    find.oninput = () => {
-      const at = find.selectionStart;
-      COLLECT_Q = find.value;
-      render();
-      const back = $("#c-find");
-      if (back) { back.focus(); try { back.setSelectionRange(at, at); } catch (e) { /* a search input may refuse a caret */ } }
-    };
-    find.onkeydown = e => { if (e.key === "Escape") { COLLECT_Q = ""; render(); const b = $("#c-find"); if (b) b.focus(); } };
-  }
+  // A source that cannot be collected from a browser says so above the form; the fields follow the
+  // button and go dead, so nobody fills in a form that was never going to send anything.
+  if ($(".cblock")) document.querySelectorAll(".cform input, .cform select, .ckey input").forEach(e => { e.disabled = true; });
   const d = $("#drop"); if (!d) return;
   d.onclick = () => $("#file").click(); d.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#file").click(); } };
   ["dragover", "dragenter"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("over"); }));
@@ -2820,7 +2760,7 @@ function overviewPage() {
   const dateV = s.date_from ? (same ? s.date_from.slice(0, 10) : `${s.date_from.slice(0, 10)}`) : "-";
   const dateS = s.date_from ? (same ? `${s.date_from.slice(11)} to ${s.date_to.slice(11)}` : `to ${s.date_to.slice(0, 10)}`) : "no dates in file";
   const panel = (id, title, body) => `<article class="panel"><div class="panel-head"><h3 class="panel-title">${esc(title)}${iMark(plainOf(id).what)}</h3><div class="tools"><button class="iconbtn" data-go="c-${id}" title="Open">Open</button>${saveBtn(id)}</div></div>${body}</article>`;
-  return `${filterBar()}${compareBar()}${head("Overview", "", `<button class="btn" data-act="prepare" data-tip="Work on a random sample, count each account at most a few times, or split the posts into two periods to compare.">Prepare posts</button><button class="btn" data-act="saveproject" data-tip="Save your settings, options, report list, checks and notes in one file to continue later or share.">Save project</button><button class="btn" data-act="about">File details</button>`)}
+  return `${filterBar()}${compareBar()}${head("Overview", "", `<button class="btn" data-act="prepare" data-tip="Work on a random sample, count each account at most a few times, or split the posts into two periods to compare.">Prepare posts</button><button class="btn" data-act="saveproject" data-tip="Save your settings, options, report list, checks and notes in one file to continue later or share.">Save project</button><button class="btn" data-act="dldata" data-tip="Saves the table the analyses are reading, as a CSV file: your posts after cleaning, with the columns MARSAD derived from them.">Download data (CSV)</button><button class="btn" data-act="about">File details</button>`)}
    ${noticesPanel()}
    <div class="metric-grid">
      <div class="metric"><div class="metric-label">Posts${iMark("Posts after cleaning: deleted, empty and repeated rows are removed.")}</div><div class="metric-value">${fmt(s.posts)}</div><div class="metric-small">${esc(PLATFORMS[s.platform] || "")}</div></div>
@@ -3915,6 +3855,7 @@ function explain(id) {
 function about() {
   const s = SCAN;
   const L = k => esc(trUI(k));
+  const need = k => esc((LANG === "ar" && PL.ar?.needs?.[k]) || PL.needs[k] || k);
   modal(trUI("File details"), `<table class="g"><tr><th>${L("Information")}</th><th>${L("Value")}</th></tr>
     <tr><td>${L("Files")}</td><td>${esc(fileNames().join(", "))}${(s.datasets || []).length > 1 ? ` (${L(s.mode === "compare" ? "compared" : "combined")})` : ""}</td></tr>
     <tr><td>${L("Type")}</td><td>${esc(trUI(PLATFORMS[s.platform] || s.platform || "a table"))}</td></tr>
@@ -3924,8 +3865,8 @@ function about() {
     <tr><td>${L("First and last post")}</td><td>${esc(s.date_from || "-")} ${L("to")} ${esc(s.date_to || "-")}</td></tr>
     <tr><td>${L("Time zone")}</td><td>${esc(trUI(s.info.timezone_note || s.settings.analysis_tz))}</td></tr>
     <tr><td>${L("Weekend")}</td><td>${esc(trUI(s.info.weekend_note || s.settings.weekend))}</td></tr>
-    <tr><td>${L("Information found")}</td><td>${Object.entries(s.capabilities).filter(([, v]) => v).map(([k]) => esc(trUI(PL.needs[k] || k))).join(", ")}</td></tr>
-    <tr><td>${L("Not in this file")}</td><td>${Object.entries(s.capabilities).filter(([, v]) => !v).map(([k]) => esc(trUI(PL.needs[k] || k))).filter(x => !x.startsWith("has_")).join(", ")}</td></tr></table>
+    <tr><td>${L("Information found")}</td><td>${Object.entries(s.capabilities).filter(([, v]) => v).map(([k]) => need(k)).join(", ")}</td></tr>
+    <tr><td>${L("Not in this file")}</td><td>${Object.entries(s.capabilities).filter(([, v]) => !v).map(([k]) => need(k)).filter(x => !x.startsWith("has_")).join(", ")}</td></tr></table>
     ${(s.completeness || []).length ? `<h3 class="mh">${L("How complete is each field?")}${iMark(trUI("Share of the loaded posts that have a value. Analyses that need a field use only the posts that have it."))}</h3><table class="g"><tr><th>${L("Field")}</th><th>${L("Posts with a value")}</th></tr>${s.completeness.map(c => `<tr><td>${esc(trUI(COLNAMES[c.field] || c.field))}</td><td>${c.in_file ? `<span class="meter"><span style="width:${c["present_%"]}%"></span></span> ${c["present_%"]}%` : L("not in the file")}</td></tr>`).join("")}</table>` : ""}
 `);
 }
@@ -4026,6 +3967,17 @@ async function download(id, r, kind, figs) {
     const d = JSON.parse(W.download(id, kind, null, ord ? JSON.stringify(ord) : null, LANG)); busy(false);
     await save(d.filename, b64(d.data), msg);
   } catch (e) { busy(false); msg.textContent = "Could not prepare the file: " + pyErr(e); }
+}
+
+// The dataset itself: the table the analyses are reading, so a reader can check any number by hand.
+async function dlDataset() {
+  if (!SCAN) return;
+  try {
+    busy(true, trUI("Preparing the file")); await tick();
+    const d = JSON.parse(W.dataset()); busy(false);
+    await save(d.filename, b64(d.data), null);
+    toast(`${trUI("Saved")} ${d.filename} \u00b7 ${fmt(d.rows)} ${trUI("rows")}, ${d.cols} ${trUI("columns")}`);
+  } catch (e) { busy(false); toast(trUI("Could not prepare the file") + ": " + pyErr(e)); }
 }
 
 $("#helpbtn").onclick = () => go({page: "help", route: {view: "home"}});
