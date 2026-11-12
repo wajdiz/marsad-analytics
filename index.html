@@ -3886,11 +3886,11 @@ function bindResult(id, r) {
   syncSortBtn(id);
   const tn = $("#topn"); if (tn) tn.onchange = async () => { params[id] = {...(params[id] || {}), top: +tn.value}; results[id] = null; await cardPage(id); };
   const mb = $("#morebtn"), mm = $("#moremenu");
-  if (mb) { mb.onclick = e => { e.stopPropagation(); mm.hidden = !mm.hidden; }; document.addEventListener("click", () => { if (mm) mm.hidden = true; }, {once: true}); }
+  if (mb) mb.onclick = e => { e.stopPropagation(); const open = mm.hidden; closeMenus(); mm.hidden = !open; };
   document.querySelectorAll("[data-more]").forEach(b => b.onclick = () => { mm.hidden = true; moreAction(b.dataset.more, id, r, figs); });
   const tb = $("#testbtn"); if (tb) tb.onclick = () => testDiff(id);
   const db = $("#dlbtn"), dm = $("#dlmenu");
-  if (db) { db.onclick = e => { e.stopPropagation(); dm.hidden = !dm.hidden; }; document.addEventListener("click", () => { if (dm) dm.hidden = true; }, {once: true}); }
+  if (db) db.onclick = e => { e.stopPropagation(); const open = dm.hidden; closeMenus(); dm.hidden = !open; };
   const rr = $("#rerun"); if (rr) rr.onclick = async () => { params[id] = readParams(); results[id] = null; await cardPage(id); };
   document.querySelectorAll("[data-dl]").forEach(b => b.onclick = () => { dm.hidden = true; download(id, r, b.dataset.dl, figs); });
 }
@@ -3901,6 +3901,10 @@ function bindResult(id, r) {
 
 
 // ------------------------------------------------------------------ chart controls: %, top N, sort, full screen, copy, report a problem
+// Download / More menus: one menu open at a time; a click anywhere else or Escape closes them.
+function closeMenus() { document.querySelectorAll(".menu-list").forEach(m => { m.hidden = true; }); }
+document.addEventListener("click", closeMenus);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeMenus(); });
 const COUNT_AXES = ["posts", "n_posts", "count", "number of posts"];
 function axisTitle(a) { const t = a && a.title; return String((t && (t.text ?? t)) || "").toLowerCase(); }
 function pctAxis(f) {
