@@ -183,6 +183,33 @@ html[dir="rtl"] .drawer{box-shadow:6px 0 24px rgba(0,0,0,.14)}
 .cblock{border:1px solid var(--k-amb-40-100);background:var(--k-amb-95-100);border-radius:10px;padding:12px 14px;margin:0 0 14px}
 .cblock-h{margin:0 0 6px;font-weight:600;color:var(--k-blu-25-40)}
 @media (prefers-color-scheme:dark){.cblock{background:var(--k-yel-10-40);color:var(--k-yel-70-80)}.cblock-h{color:var(--k-yel-70-80)}}
+.bigfile{border:1px solid var(--border);border-radius:12px;padding:18px 20px;background:var(--white)}
+.bigfile-h{margin:0 0 8px;font-size:17px;color:var(--k-blu-25-40);font-weight:600}
+.bigsub{margin:18px 0 8px;font-size:14px;color:var(--k-blu-25-40);font-weight:600}
+.bigsizes{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bigsizes .btn.on{background:var(--teal);color:var(--white);border-color:var(--teal)}
+.bigcustom input{width:7.5em;margin-inline-start:6px}
+.bigopts{display:grid;gap:10px}
+.bigopt{display:grid;gap:4px;border:1px solid var(--border);border-radius:9px;padding:10px 12px}
+.bigopt.pick{border-color:var(--k-tea-30-80);background:var(--k-tea-100-20)}
+.bigopt:not(.on){opacity:.6}
+.bigopt select{margin:0 4px;max-width:16em}
+.bigfilters{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.bigfilters input[type=number]{width:6em}
+.inlinechk{display:inline-flex;align-items:center;gap:6px}
+.bigacts{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.bigannot{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-top:10px}
+.bigannot input[type=text]{width:12em}.bigannot input[type=number]{width:5em}
+.bigsplit{border-top:1px solid var(--border);margin-top:18px;padding-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.bigsplit .bigsub{width:100%;margin:0}
+.bigprog{display:flex;align-items:center;gap:12px;margin:16px 0}
+.bigprog progress{width:260px;height:14px}
+.bigmsg{margin:14px 0 0;padding:10px 12px;border-radius:8px;background:var(--k-blu-95-20)}
+.bigmsg.err{background:var(--k-red-95-80);color:var(--k-red-25-60)}
+.bigmsg.ok{background:var(--k-grn-95-40)}
+@media (max-width:560px){.bigprog progress{width:150px}.bigfilters{gap:8px 12px}}
+.optcheck span{display:block;font-weight:400}
+.optcheck input{margin-inline-end:7px;vertical-align:middle}
 .dlbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--border);margin-top:18px;padding-top:14px}
 .srcopen{border-top:1px solid var(--border);margin-top:18px;padding-top:16px}
 .srcopen-h{display:flex;align-items:center;gap:9px;font-size:17px;color:var(--k-blu-25-40);margin:0 0 12px}
@@ -677,7 +704,7 @@ body.bigtext .explore-label{font-size:19px}
 
 const SITE = "/home/pyodide/site";
 const PKGS = ["numpy", "pandas", "scipy", "scikit-learn", "regex", "msgpack", "tzdata", "packaging"];
-const BUILD = "2026-11-11 11:15 UTC";   // >>> BUILD STAMP <<< replaced by build_web_bundle.sh
+const BUILD = "2026-11-12 06:16 UTC";   // >>> BUILD STAMP <<< replaced by build_web_bundle.sh
 let VERSION = "", CH = null, V = null, DR = null, SAMPLE = null, py = null, W = null, REG = null, PL = null, SCAN = null, LEX = [], dl = null, wordfreq = false;
 const files = [], results = {}, params = {}, saved = new Set(), fileSel = {};
 let loadMode = "combine";
@@ -701,6 +728,9 @@ const MARSAD_RESOURCES = "https://marsadlab.com/resources.html";
 const ZS_URL = "https://github.com/digitalmethodsinitiative/zeeschuimer/releases";
 // Where the platform's own data collection lives. Change this one line if the address moves.
 const MARSAD_PLATFORM = "https://dev.marsadlab.com/";
+// Arabic prefixes come off before words are counted. On by default; the switch sits with the other
+// settings that change every number, because this one changes every word count.
+let ARSEG = true; try { ARSEG = localStorage.getItem("marsad_arseg") !== "0"; } catch (e) {}
 let SRC = "own";
 let COLLECT_SRC = "";
 let COLLECT_CAT = "";             // "" shows the whole directory rather than one category
@@ -1174,6 +1204,13 @@ function act(name, el) {
   if (name === "openproject") $("#projfile").click();
   if (name === "openposts") showPosts(el.dataset.f, el.dataset.title || "");
   if (name === "dldata") dlDataset();
+  if (name === "bigscan") bigScan();
+  if (name === "bigtake") bigTake();
+  if (name === "bigsave") bigSave();
+  if (name === "bigannot") bigAnnot();
+  if (name === "bigsplit") bigSplit();
+  if (name === "bigsize") { BIGPLAN.size = +el.dataset.n; render(); }
+  if (name === "bigdrop") { BIGFILE = null; render(); }
 }
 
 // ------------------------------------------------------------------ pages
@@ -2606,6 +2643,7 @@ function sourcesPanel(again) {
 function srcBody(again) {
   const head = (icon, title) => `<h2 class="srcopen-h">${ico(icon, "")}<span>${esc(trUI(title))}</span></h2>`;
   if (SRC === "own") {
+    if (BIGFILE) return head("file", "A large file") + bigPanel();
     return head("file", files.length ? "Your files" : "Upload your files") + `
       <div class="drop" id="drop" tabindex="0" role="button"><b>${files.length ? trUI("Add another file") : trUI("Drop files here or click to choose")}</b>${esc(trUI("CSV, Excel, JSON. You can add several files."))}</div>
       <div id="filelist"></div>
@@ -2622,6 +2660,9 @@ function srcBody(again) {
               <input id="tz" list="tzlist" value="${esc(tzLabel((SCAN && SCAN.settings && SCAN.settings.analysis_tz) || "Asia/Qatar"))}" spellcheck="false">
               <span class="small-print">${esc(trUI("What MARSAD shows dates and hours in."))}</span></label>
             <label>${esc(trUI("Weekend"))} <select id="weekend"><option value="auto">${esc(trUI("Auto"))}</option><option value="fri-sat">Fri-Sat</option><option value="sat-sun">Sat-Sun</option></select></label>
+            <label class="optcheck">${esc(trUI("Arabic words"))}
+              <span><input type="checkbox" id="arseg" ${ARSEG ? "checked" : ""}> ${esc(trUI("Count \u0627\u0644\u062d\u0643\u0648\u0645\u0629 and \u0648\u0627\u0644\u062d\u0643\u0648\u0645\u0629 as one word"))}</span>
+              <span class="small-print">${esc(trUI("Takes the conjunction, preposition and article off the front of a word before it is counted. Words that begin with those letters, such as \u0648\u0632\u064a\u0631, are left alone."))}</span></label>
           </div>
           <datalist id="tzlist">${TZ.map(([v, n]) => `<option value="${esc(n)}"></option>`).join("")}</datalist>
         </div>`}
@@ -2677,6 +2718,8 @@ function bindStart() {
   // A source that cannot be collected from a browser says so above the form; the fields follow the
   // button and go dead, so nobody fills in a form that was never going to send anything.
   if ($(".cblock")) document.querySelectorAll(".cform input, .cform select, .ckey input").forEach(e => { e.disabled = true; });
+  const seg = $("#arseg");
+  if (seg) seg.onchange = () => { ARSEG = seg.checked; try { localStorage.setItem("marsad_arseg", ARSEG ? "1" : "0"); } catch (e) {} };
   const d = $("#drop"); if (!d) return;
   d.onclick = () => $("#file").click(); d.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#file").click(); } };
   ["dragover", "dragenter"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("over"); }));
@@ -2686,9 +2729,682 @@ function bindStart() {
 }
 $("#file").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
 $("#projfile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) openProject(f); };
+const fileStem = n => n.replace(/^practice_/, "").replace(/\.(csv|tsv|txt|xlsx|xls|json|jsonl|ndjson)(\.txt)?$/i, "").replace(/[^\w\-]+/g, "_");
 const stem = n => n.replace(/^practice_/, "").replace(/\.(csv|tsv|txt|xlsx|xls|json|jsonl|ndjson)(\.txt)?$/i, "").replace(/[_-]+/g, " ").trim();
+// ==================================================================================================
+// Files too big for the browser
+// --------------------------------------------------------------------------------------------------
+// The analyses run inside this page, so the whole file has to fit in the browser's memory. A gigabyte
+// of CSV does not: reading it into a table takes several times its own size, and the tab stops before
+// any analysis starts. None of that means the file is unusable. The browser can read a file in slices
+// without holding it, so the page scans it once, says what is in it, and then either takes a sample
+// the analyses can work on or cuts the file into parts.
+//
+// Everything here reads; nothing is uploaded. The slices are read from the file on the computer.
+const BIG_BYTES = 40e6;          // above this a file goes through the scan rather than straight in
+const BIG_ROWS = 50000;          // what the analyses are comfortable with in a browser
+const SCAN_CHUNK = 4 << 20;      // 4 MB a slice: large enough to be fast, small enough to stay smooth
+const GROUP_CAP = 4000;          // a column with more distinct values than this is no use to stratify by
+const DEDUP_CAP = 3e6;           // hashes kept while dropping repeats, before it would cost more memory
+let BIGFILE = null;              // {file, scan, busy} for the file being worked on
+
+// ---------------------------------------------------------------- reading
+// A CSV field may hold a comma, a quote or a newline, so the file cannot be cut on newlines alone.
+// This walks the text once, keeping the state across slice boundaries.
+function csvParser(delim) {
+  let field = "", row = [], inQ = false, wasQ = false;
+  return {
+    push(text, out) {
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQ) {
+          if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else { inQ = false; } }
+          else field += c;
+        } else if (c === '"' && field === "") { inQ = true; wasQ = true; }
+        else if (c === delim) { row.push(field); field = ""; wasQ = false; }
+        else if (c === "\n") { row.push(field); out.push(row); row = []; field = ""; wasQ = false; }
+        else if (c === "\r") { /* \r\n and lone \r both end the line on the \n or the next field */ }
+        else field += c;
+      }
+    },
+    end(out) {
+      if (field !== "" || row.length || wasQ) { row.push(field); out.push(row); row = []; field = ""; }
+    },
+    get open() { return inQ; }
+  };
+}
+
+const DELIMS = [",", "\t", ";", "|"];
+function sniffDelim(sample) {
+  const line = sample.split("\n")[0] || "";
+  let best = ",", n = -1;
+  for (const d of DELIMS) {
+    const c = (line.match(new RegExp("\\" + d, "g")) || []).length;
+    if (c > n) { n = c; best = d; }
+  }
+  return n > 0 ? best : ",";
+}
+
+// Walks the file, handing each record to onRow. Returns when the file is done or onRow returns false.
+async function readRecords(file, onRow, onProgress, opts) {
+  const o = opts || {};
+  const dec = new TextDecoder("utf-8");
+  const head = dec.decode(await file.slice(0, 64 << 10).arrayBuffer());
+  const json = o.json !== undefined ? o.json : /^\s*[{[]/.test(head);
+  const delim = o.delim || sniffDelim(head);
+  const parser = json ? null : csvParser(delim);
+  let at = 0, n = 0, tail = "", stop = false;
+  while (at < file.size && !stop) {
+    const end = Math.min(at + SCAN_CHUNK, file.size);
+    const text = dec.decode(await file.slice(at, end).arrayBuffer(), {stream: end < file.size});
+    at = end;
+    if (json) {
+      const lines = (tail + text).split("\n");
+      tail = lines.pop();
+      for (const l of lines) {
+        const t = l.trim();
+        if (!t || t === "[" || t === "]") continue;
+        let v; try { v = JSON.parse(t.replace(/,$/, "")); } catch (e) { continue; }
+        if (onRow(v, n++) === false) { stop = true; break; }
+      }
+    } else {
+      const out = [];
+      parser.push(text, out);
+      for (const r of out) { if (onRow(r, n++) === false) { stop = true; break; } }
+    }
+    if (onProgress) await onProgress(at / file.size, n);
+  }
+  if (!stop) {
+    if (json) {
+      const t = tail.trim();
+      if (t && t !== "]") { try { onRow(JSON.parse(t.replace(/,$/, "")), n++); } catch (e) {} }
+    } else {
+      const out = [];
+      parser.end(out);
+      for (const r of out) onRow(r, n++);
+    }
+  }
+  return {rows: n, delim, json};
+}
+
+// ---------------------------------------------------------------- what is in the file
+const ENG_NAMES = ["total interactions", "interactions", "engagement", "engagement total", "likes",
+                   "reactions", "comments", "shares", "retweets", "score", "upvotes", "favorites",
+                   "likes at posting", "total views", "views", "post views", "play count"];
+const TEXT_NAMES = ["message", "text", "body", "content", "post", "title", "headline", "description",
+                    "caption", "full_text", "selftext", "summary", "abstract"];
+const DATE_NAMES = ["post created", "created_at", "created", "date", "published", "published_at",
+                    "timestamp", "time", "post created date", "datetime", "pubdate"];
+
+const lower = (x) => String(x == null ? "" : x).trim().toLowerCase();
+const pickCol = (header, names) => {
+  const lows = header.map(lower);
+  for (const n of names) { const i = lows.indexOf(n); if (i >= 0) return i; }
+  for (let i = 0; i < lows.length; i++) if (names.some(n => lows[i].includes(n))) return i;
+  return -1;
+};
+const numOf = (v) => {
+  const n = Number(String(v == null ? "" : v).replace(/[,\s]/g, ""));
+  return isFinite(n) ? n : null;
+};
+const wordsIn = (v) => { const t = String(v == null ? "" : v).trim(); return t ? t.split(/\s+/).length : 0; };
+const dayOf = (v) => { const t = String(v == null ? "" : v).trim(); const m = t.match(/\d{4}-\d{2}-\d{2}/); return m ? m[0] : (t.slice(0, 10) || ""); };
+
+async function scanBig(file, onProgress) {
+  let header = null, rows = 0, json = false;
+  const counts = new Map();          // column -> Map(value -> n), capped
+  const dropped = new Set();         // columns with too many distinct values to stratify by
+  let dateMin = "", dateMax = "", dateCol = -1, textCol = -1;
+  const engCols = [];
+  const sample = [];
+  const res = await readRecords(file, (r, i) => {
+    if (header === null && !Array.isArray(r)) {
+      json = true;
+      header = Object.keys(r);
+      textCol = pickCol(header, TEXT_NAMES);
+      dateCol = pickCol(header, DATE_NAMES);
+      header.forEach((h, k) => { if (ENG_NAMES.includes(lower(h))) engCols.push(k); });
+    }
+    if (header === null) {
+      header = r.map(x => String(x));
+      textCol = pickCol(header, TEXT_NAMES);
+      dateCol = pickCol(header, DATE_NAMES);
+      header.forEach((h, k) => { if (ENG_NAMES.includes(lower(h))) engCols.push(k); });
+      return;
+    }
+    const vals = json ? header.map(h => r[h]) : r;
+    rows++;
+    if (sample.length < 5) sample.push(vals);
+    if (dateCol >= 0) {
+      const d = dayOf(vals[dateCol]);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        if (!dateMin || d < dateMin) dateMin = d;
+        if (!dateMax || d > dateMax) dateMax = d;
+      }
+    }
+    if (rows <= 200000) {            // enough to know which columns group usefully
+      header.forEach((h, k) => {
+        if (dropped.has(k) || k === textCol) return;
+        let m = counts.get(k); if (!m) { m = new Map(); counts.set(k, m); }
+        const v = String(vals[k] == null ? "" : vals[k]).slice(0, 80);
+        m.set(v, (m.get(v) || 0) + 1);
+        if (m.size > GROUP_CAP) { dropped.add(k); counts.delete(k); }
+      });
+    }
+  }, onProgress);
+  const groupCols = [...counts.keys()].filter(k => counts.get(k).size >= 2 && counts.get(k).size <= 60)
+    .sort((a, b) => counts.get(a).size - counts.get(b).size);
+  return {rows, header, json, delim: res.delim, textCol, dateCol, engCols, groupCols,
+          groups: Object.fromEntries(groupCols.map(k => [k, [...counts.get(k).entries()]
+            .sort((a, b) => b[1] - a[1]).slice(0, 60)])),
+          dateMin, dateMax, sample, bytes: file.size};
+}
+
+// ---------------------------------------------------------------- choosing rows
+// A seeded generator, so the same settings give the same posts and a reviewer can check.
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function hash32(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+// A heap of the N largest, so the top of a file of any size costs only N rows of memory.
+function topHeap(n) {
+  const a = [];
+  const up = (i) => { while (i > 0) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; [a[p], a[i]] = [a[i], a[p]]; i = p; } };
+  const down = (i) => {
+    for (;;) {
+      const l = 2 * i + 1, r = l + 1; let m = i;
+      if (l < a.length && a[l][0] < a[m][0]) m = l;
+      if (r < a.length && a[r][0] < a[m][0]) m = r;
+      if (m === i) break;
+      [a[m], a[i]] = [a[i], a[m]]; i = m;
+    }
+  };
+  return {
+    offer(score, row) {
+      if (a.length < n) { a.push([score, row]); up(a.length - 1); }
+      else if (score > a[0][0]) { a[0] = [score, row]; down(0); }
+    },
+    get rows() { return a.slice().sort((x, y) => y[0] - x[0]).map(x => x[1]); },
+    get size() { return a.length; }
+  };
+}
+
+function groupKey(plan, scan, vals) {
+  if (plan.mode === "stratified" && plan.groupCol >= 0) return String(vals[plan.groupCol] == null ? "" : vals[plan.groupCol]).slice(0, 80);
+  if (plan.mode === "time") {
+    const d = dayOf(vals[scan.dateCol]);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return "";
+    if (plan.timeUnit === "month") return d.slice(0, 7);
+    if (plan.timeUnit === "year") return d.slice(0, 4);
+    const dt = new Date(d + "T00:00:00Z");
+    dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7));     // the Monday of that week
+    return dt.toISOString().slice(0, 10);
+  }
+  return "_all";
+}
+
+// Rows the settings allow: the length filter and the date range decide what the sample is drawn from,
+// so asking for 1,000 posts of 10 to 100 words gives 1,000 of them, not 1,000 minus the ones cut.
+function admits(plan, scan, vals, seen) {
+  if (plan.from || plan.to) {
+    const d = dayOf(vals[scan.dateCol]);
+    if (plan.from && d < plan.from) return "date";
+    if (plan.to && d > plan.to) return "date";
+  }
+  if (plan.minWords || plan.maxWords) {
+    const w = wordsIn(scan.textCol >= 0 ? vals[scan.textCol] : "");
+    if (plan.minWords && w < plan.minWords) return "short";
+    if (plan.maxWords && w > plan.maxWords) return "long";
+  }
+  if (plan.dedup && scan.textCol >= 0 && seen) {
+    const t = String(vals[scan.textCol] == null ? "" : vals[scan.textCol]).trim().replace(/\s+/g, " ").toLowerCase();
+    if (t) {
+      if (seen.size < DEDUP_CAP) {
+        const h = hash32(t);
+        if (seen.has(h)) return "repeat";
+        seen.add(h);
+      }
+    }
+  }
+  return "";
+}
+
+async function sampleBig(file, scan, plan, onProgress) {
+  const out = {kept: [], seen: 0, cut: {date: 0, short: 0, long: 0, repeat: 0}, groups: 0,
+               capped: false};
+  const seen = plan.dedup ? new Set() : null;
+  const rnd = mulberry32(plan.seed >>> 0);
+  const want = Math.max(1, plan.size | 0);
+  let first = true;
+
+  if (plan.mode === "top") {
+    const heap = topHeap(want);
+    await readRecords(file, (r, i) => {
+      if (first && !scan.json) { first = false; return; }
+      const vals = scan.json ? scan.header.map(h => r[h]) : r;
+      const why = admits(plan, scan, vals, seen);
+      if (why) { out.cut[why]++; return; }
+      out.seen++;
+      const v = numOf(vals[plan.by]);
+      heap.offer(v == null ? -Infinity : v, vals);
+    }, onProgress, {json: scan.json, delim: scan.delim});
+    out.kept = heap.rows;
+    out.groups = 1;
+    return out;
+  }
+
+  // Everything else is a reservoir, per group. One group for a plain random sample, one per
+  // stratum or per week when the rows are spread across something.
+  const res = new Map();            // key -> {seen, rows: []}
+  await readRecords(file, (r, i) => {
+    if (first && !scan.json) { first = false; return; }
+    const vals = scan.json ? scan.header.map(h => r[h]) : r;
+    const why = admits(plan, scan, vals, seen);
+    if (why) { out.cut[why]++; return; }
+    out.seen++;
+    const k = groupKey(plan, scan, vals);
+    if (plan.mode !== "random" && k === "") return;
+    let g = res.get(k);
+    if (!g) { g = {seen: 0, rows: []}; res.set(k, g); }
+    g.seen++;
+    const cap = plan.mode === "random" ? want : Math.max(1, Math.ceil(want / Math.max(1, res.size)) * 3);
+    if (g.rows.length < cap) g.rows.push(vals);
+    else { const j = Math.floor(rnd() * g.seen); if (j < cap) g.rows[j] = vals; }
+  }, onProgress, {json: scan.json, delim: scan.delim});
+
+  out.groups = res.size;
+  if (plan.mode === "random") {
+    out.kept = (res.get("_all") || {rows: []}).rows.slice(0, want);
+    return out;
+  }
+  // Shares: proportional keeps each group's weight in the file, equal gives every group the same room.
+  const keys = [...res.keys()];
+  const total = keys.reduce((a, k) => a + res.get(k).seen, 0) || 1;
+  let quota = {};
+  if (plan.equal) {
+    const each = Math.floor(want / keys.length);
+    keys.forEach(k => quota[k] = each);
+  } else {
+    keys.forEach(k => quota[k] = Math.floor(want * res.get(k).seen / total));
+  }
+  let have = keys.reduce((a, k) => a + Math.min(quota[k], res.get(k).rows.length), 0);
+  // whatever rounding and small groups leave over goes to the groups that still have rows
+  for (const k of keys.sort((a, b) => res.get(b).seen - res.get(a).seen)) {
+    if (have >= want) break;
+    const room = res.get(k).rows.length - Math.min(quota[k], res.get(k).rows.length);
+    const add = Math.min(room, want - have);
+    quota[k] += add; have += add;
+  }
+  for (const k of keys) {
+    const g = res.get(k);
+    const n = Math.min(quota[k] || 0, g.rows.length);
+    for (let i = 0; i < n; i++) out.kept.push(g.rows[i]);
+  }
+  out.kept = out.kept.slice(0, want);
+  return out;
+}
+
+// ---------------------------------------------------------------- writing it back out
+const csvField = (v) => {
+  const t = v == null ? "" : String(v);
+  return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+};
+const csvText = (header, rows) => "﻿" + [header.map(csvField).join(",")]
+  .concat(rows.map(r => r.map(csvField).join(","))).join("\n") + "\n";
+
+// A zip with no compression: four short files in one download, written here rather than pulled in.
+function zipStore(entries) {
+  const enc = new TextEncoder();
+  const table = (() => { const t = new Uint32Array(256); for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ c >>> 1 : c >>> 1; t[i] = c >>> 0; } return t; })();
+  const crc32 = (b) => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = table[(c ^ b[i]) & 255] ^ c >>> 8; return (c ^ 0xFFFFFFFF) >>> 0; };
+  const parts = [], dir = [];
+  let at = 0;
+  for (const [name, text] of entries) {
+    const nb = enc.encode(name), data = enc.encode(text), crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0, true);
+    h.setUint16(8, 0, true); h.setUint16(10, 0, true); h.setUint16(12, 0, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true);
+    h.setUint16(26, nb.length, true); h.setUint16(28, 0, true);
+    parts.push(new Uint8Array(h.buffer), nb, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true);
+    c.setUint16(8, 0, true); c.setUint16(10, 0, true); c.setUint16(12, 0, true); c.setUint16(14, 0, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true);
+    c.setUint16(28, nb.length, true); c.setUint16(30, 0, true); c.setUint16(32, 0, true);
+    c.setUint16(34, 0, true); c.setUint16(36, 0, true); c.setUint32(38, 0, true); c.setUint32(42, at, true);
+    dir.push(new Uint8Array(c.buffer), nb);
+    at += 30 + nb.length + data.length;
+  }
+  const dirBytes = dir.reduce((a, b) => a + b.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(4, 0, true); e.setUint16(6, 0, true);
+  e.setUint16(8, entries.length, true); e.setUint16(10, entries.length, true);
+  e.setUint32(12, dirBytes, true); e.setUint32(16, at, true); e.setUint16(20, 0, true);
+  return new Blob([...parts, ...dir, new Uint8Array(e.buffer)], {type: "application/zip"});
+}
+
+// ---------------------------------------------------------------- splitting
+async function splitBig(file, scan, perPart, onProgress, onPart) {
+  let part = [], n = 0, made = 0, first = true;
+  const flush = async () => {
+    if (!part.length) return;
+    made++;
+    await onPart(made, csvText(scan.header, part), part.length);
+    part = [];
+  };
+  await readRecords(file, (r, i) => {
+    if (first && !scan.json) { first = false; return; }
+    part.push(scan.json ? scan.header.map(h => r[h]) : r);
+    n++;
+    if (part.length >= perPart) { const p = part; part = []; made++; onPart(made, csvText(scan.header, p), p.length); }
+  }, onProgress, {json: scan.json, delim: scan.delim});
+  await flush();
+  return {parts: made, rows: n};
+}
+
+// ---------------------------------------------------------------- a sample ready to be annotated
+// Two annotators label the same posts independently, so agreement can be measured afterwards, and
+// both start with the same small calibration set to settle the guidelines before the main round.
+function annotationPack(scan, rows, plan, labels, calibN) {
+  const enc = [];
+  const idCol = pickCol(scan.header, ["id", "post_id", "url", "link", "permalink", "post id"]);
+  const head = ["row_id", "calibration"]
+    .concat(scan.header)
+    .concat(labels.length ? labels : ["label"], ["notes"]);
+  const body = rows.map((r, i) => [String(i + 1), ""].concat(r).concat((labels.length ? labels : ["label"]).map(() => ""), [""]));
+  const cal = Math.max(0, Math.min(calibN | 0, body.length));
+  const rnd = mulberry32((plan.seed >>> 0) ^ 0x9e3779b9);
+  const order = body.map((_, i) => i).sort(() => rnd() - 0.5);
+  const calIdx = new Set(order.slice(0, cal));
+  body.forEach((b, i) => { b[1] = calIdx.has(i) ? "yes" : ""; });
+  const calRows = body.filter((_, i) => calIdx.has(i));
+  const shuffled = (seed) => {
+    const g = mulberry32(seed), a = body.map((b, i) => [g(), b]);
+    a.sort((x, y) => x[0] - y[0]);
+    return a.map(x => x[1]);
+  };
+  enc.push(["annotator_a.csv", csvText(head, shuffled((plan.seed >>> 0) + 1))]);
+  enc.push(["annotator_b.csv", csvText(head, shuffled((plan.seed >>> 0) + 2))]);
+  if (cal) enc.push(["calibration.csv", csvText(head, calRows)]);
+  enc.push(["sample.csv", csvText(head, body)]);
+  enc.push(["how_this_sample_was_made.json", JSON.stringify({
+    made_at: new Date().toISOString(),
+    source_file: scan.name || "", source_rows: scan.rows, source_bytes: scan.bytes,
+    method: plan.mode, size_asked: plan.size, size_given: rows.length,
+    ranked_by: plan.mode === "top" ? scan.header[plan.by] : null,
+    stratified_by: plan.mode === "stratified" ? scan.header[plan.groupCol] : null,
+    equal_groups: plan.mode === "stratified" ? !!plan.equal : null,
+    time_unit: plan.mode === "time" ? plan.timeUnit : null,
+    date_from: plan.from || null, date_to: plan.to || null,
+    min_words: plan.minWords || null, max_words: plan.maxWords || null,
+    duplicates_dropped: !!plan.dedup, random_seed: plan.seed,
+    calibration_rows: cal, label_columns: labels.length ? labels : ["label"],
+    note: "Re-running MARSAD with these settings on the same file returns the same rows."
+  }, null, 2)]);
+  enc.push(["README.txt",
+    "This pack holds one sample of " + rows.length + " posts, drawn from " + (scan.rows || 0) +
+    ".\n\nannotator_a.csv and annotator_b.csv hold the same posts in a different order, one per\n" +
+    "annotator, so the two of you label independently. Fill the label column in your own file\n" +
+    "and leave row_id alone: it is what matches the two files back together.\n\n" +
+    (cal ? "calibration.csv holds the " + cal + " posts marked calibration=yes in both files. Label\n" +
+           "those first and compare, before working through the rest.\n\n" : "") +
+    "sample.csv is the sample as drawn, in file order.\n\n" +
+    "how_this_sample_was_made.json records the settings and the random seed. Keep it: it is what\n" +
+    "lets anyone draw the same sample again, which reviewers ask about.\n"]);
+  return zipStore(enc);
+}
+
+// ---------------------------------------------------------------- the panel
+// What is offered depends on what the file holds. A news export with a headline and a date gets the
+// date options and no engagement option; a CrowdTangle export gets both. Nothing here assumes posts.
+let BIGPLAN = {mode: "random", size: 50000, by: -1, groupCol: -1, timeUnit: "week", equal: false,
+               from: "", to: "", minWords: 0, maxWords: 0, dedup: true, seed: 42,
+               labels: "label", calib: 50, perPart: 50000};
+
+function bigPanel() {
+  if (!BIGFILE) return "";
+  const f = BIGFILE.file, sc = BIGFILE.scan;
+  const mb = (f.size / 1e6).toFixed(0);
+  if (!sc) {
+    return `<div class="bigfile">
+      <h3 class="bigfile-h">${esc(trUI("This file is too large to analyse whole"))}</h3>
+      <p>${esc(f.name)} ${esc(trUI("is"))} ${mb} MB. ${esc(trUI("The analyses run inside this page, so the whole file has to fit in the browser's memory, and a file this size does not: the tab would stop before any analysis started."))}</p>
+      <p class="small-print">${esc(trUI("MARSAD can read it in slices without opening it whole, tell you what is in it, and then take a sample the analyses can work on, or cut the file into parts. Nothing is uploaded."))}</p>
+      ${BIGFILE.busy
+        ? `<p class="bigprog"><progress max="100" value="${Math.round((BIGFILE.pct || 0) * 100)}"></progress>
+           <span class="small-print">${esc(trUI("Reading"))} ${Math.round((BIGFILE.pct || 0) * 100)}% · ${fmt(BIGFILE.seen || 0)} ${esc(trUI("rows"))}</span></p>`
+        : `<button class="btn primary" data-act="bigscan">${esc(trUI("Scan the file"))}</button>
+           <button class="btn" data-act="bigdrop">${esc(trUI("Remove it"))}</button>`}
+    </div>`;
+  }
+  const H = sc.header;
+  const eng = sc.engCols.map(k => `<option value="${k}"${BIGPLAN.by === k ? " selected" : ""}>${esc(H[k])}</option>`).join("");
+  const grp = sc.groupCols.map(k => `<option value="${k}"${BIGPLAN.groupCol === k ? " selected" : ""}>${esc(H[k])} (${sc.groups[k].length})</option>`).join("");
+  const can = {top: sc.engCols.length > 0, time: sc.dateCol >= 0 && sc.dateMin,
+               strat: sc.groupCols.length > 0, len: sc.textCol >= 0};
+  const opt = (v, label, on, body) => `<label class="bigopt${on ? " on" : ""}${BIGPLAN.mode === v ? " pick" : ""}">
+      <span><input type="radio" name="bigmode" value="${v}"${BIGPLAN.mode === v ? " checked" : ""}${on ? "" : " disabled"}> ${esc(trUI(label))}</span>
+      ${on ? (body || "") : `<span class="small-print">${esc(trUI("Not available: this file has no column for it."))}</span>`}
+    </label>`;
+  const sizes = [10000, 20000, 50000].map(n =>
+    `<button class="btn small${BIGPLAN.size === n ? " on" : ""}" data-act="bigsize" data-n="${n}">${fmt(n)}</button>`).join("");
+  return `<div class="bigfile">
+    <h3 class="bigfile-h">${esc(f.name)}</h3>
+    <p>${fmt(sc.rows)} ${esc(trUI("rows"))} · ${mb} MB · ${H.length} ${esc(trUI("columns"))}${sc.dateMin ? ` · ${esc(sc.dateMin)} ${esc(trUI("to"))} ${esc(sc.dateMax)}` : ""}</p>
+    <p class="small-print">${esc(trUI("The analyses are comfortable with about 50,000 rows in a browser. Above that, keep a sample, or split the file and work through the parts."))}
+      ${sc.textCol >= 0 ? esc(trUI("Text column:")) + " " + esc(H[sc.textCol]) + "." : esc(trUI("No text column was recognised, so the word-length filter is off."))}</p>
+
+    <h4 class="bigsub">${esc(trUI("How many to keep"))}</h4>
+    <div class="bigsizes">${sizes}
+      <label class="bigcustom">${esc(trUI("or"))} <input type="number" id="big-size" min="100" max="500000" value="${BIGPLAN.size}"></label></div>
+
+    <h4 class="bigsub">${esc(trUI("Which ones"))}</h4>
+    <div class="bigopts">
+      ${opt("random", "At random", true,
+            `<span class="small-print">${esc(trUI("Every row has the same chance. The safest choice for describing the whole file."))}</span>`)}
+      ${opt("top", "The most engaged", can.top,
+            `<span class="small-print">${esc(trUI("Ranked by"))} <select id="big-by">${eng}</select>
+             ${esc(trUI("These are the posts that travelled, not a picture of the whole conversation: percentages from this sample describe popular posts only."))}</span>`)}
+      ${opt("stratified", "Keeping the share of a column", can.strat,
+            `<span class="small-print"><select id="big-grp">${grp}</select>
+             <label class="inlinechk"><input type="checkbox" id="big-equal"${BIGPLAN.equal ? " checked" : ""}> ${esc(trUI("same number from each, rather than the same share"))}</label></span>`)}
+      ${opt("time", "Spread evenly over time", can.time,
+            `<span class="small-print">${esc(trUI("The same number from each"))}
+             <select id="big-unit">${["week", "month", "year"].map(u => `<option value="${u}"${BIGPLAN.timeUnit === u ? " selected" : ""}>${esc(trUI(u))}</option>`).join("")}</select></span>`)}
+    </div>
+
+    <h4 class="bigsub">${esc(trUI("Leave out"))}</h4>
+    <div class="bigfilters">
+      ${can.len ? `<label>${esc(trUI("Shorter than"))} <input type="number" id="big-min" min="0" max="1000" value="${BIGPLAN.minWords || ""}" placeholder="0"> ${esc(trUI("words"))}</label>
+      <label>${esc(trUI("Longer than"))} <input type="number" id="big-max" min="0" max="100000" value="${BIGPLAN.maxWords || ""}" placeholder="${esc(trUI("no limit"))}"> ${esc(trUI("words"))}</label>` : ""}
+      ${sc.dateCol >= 0 ? `<label>${esc(trUI("From"))} <input type="date" id="big-from" value="${esc(BIGPLAN.from)}" min="${esc(sc.dateMin)}" max="${esc(sc.dateMax)}"></label>
+      <label>${esc(trUI("To"))} <input type="date" id="big-to" value="${esc(BIGPLAN.to)}" min="${esc(sc.dateMin)}" max="${esc(sc.dateMax)}"></label>` : ""}
+      ${can.len ? `<label class="inlinechk"><input type="checkbox" id="big-dedup"${BIGPLAN.dedup ? " checked" : ""}> ${esc(trUI("Drop posts whose text repeats"))}</label>` : ""}
+      <label>${esc(trUI("Random seed"))} <input type="number" id="big-seed" min="0" max="999999" value="${BIGPLAN.seed}"></label>
+    </div>
+    <p class="small-print">${esc(trUI("The filters are applied before the sample is drawn, so asking for 1,000 posts of 10 words or more gives 1,000 of them."))}</p>
+
+    ${BIGFILE.busy ? `<p class="bigprog"><progress max="100" value="${Math.round((BIGFILE.pct || 0) * 100)}"></progress>
+        <span class="small-print">${esc(BIGFILE.what || trUI("Reading"))} ${Math.round((BIGFILE.pct || 0) * 100)}%</span></p>` : `
+    <div class="bigacts">
+      <button class="btn primary" data-act="bigtake">${esc(trUI("Analyse this sample"))}</button>
+      <button class="btn" data-act="bigsave">${esc(trUI("Download the sample (CSV)"))}</button>
+      <button class="btn" data-act="bigannot">${esc(trUI("Download it ready to annotate"))}</button>
+    </div>
+    <div class="bigannot">
+      <label>${esc(trUI("Label columns"))} <input type="text" id="big-labels" value="${esc(BIGPLAN.labels)}" placeholder="label, notes"></label>
+      <label>${esc(trUI("Posts both annotators label first"))} <input type="number" id="big-calib" min="0" max="500" value="${BIGPLAN.calib}"></label>
+      <span class="small-print">${esc(trUI("The pack holds one file per annotator with the same posts in a different order, the calibration set, and the settings and seed that made it."))}</span>
+    </div>
+    <div class="bigsplit">
+      <h4 class="bigsub">${esc(trUI("Or split the whole file"))}</h4>
+      <label>${esc(trUI("Parts of"))} <input type="number" id="big-part" min="1000" max="500000" value="${BIGPLAN.perPart}"> ${esc(trUI("rows each"))}</label>
+      <button class="btn" data-act="bigsplit">${esc(trUI("Split and download"))}</button>
+      <p class="small-print">${esc(trUI("Every row is kept, in file order. You analyse one part at a time and compare the results."))}</p>
+    </div>`}
+    ${BIGFILE.msg ? `<p class="bigmsg ${BIGFILE.msgKind || ""}">${BIGFILE.msg}</p>` : ""}
+    <button class="btn" data-act="bigdrop">${esc(trUI("Remove this file"))}</button>
+  </div>`;
+}
+
+function readBigPlan() {
+  const v = (id) => { const e = $(id); return e ? e.value : ""; };
+  const pick = document.querySelector('input[name="bigmode"]:checked');
+  if (pick) BIGPLAN.mode = pick.value;
+  BIGPLAN.size = Math.max(100, Math.min(500000, +v("#big-size") || BIGPLAN.size));
+  if ($("#big-by")) BIGPLAN.by = +v("#big-by");
+  if ($("#big-grp")) BIGPLAN.groupCol = +v("#big-grp");
+  if ($("#big-unit")) BIGPLAN.timeUnit = v("#big-unit") || "week";
+  if ($("#big-equal")) BIGPLAN.equal = $("#big-equal").checked;
+  BIGPLAN.minWords = Math.max(0, +v("#big-min") || 0);
+  BIGPLAN.maxWords = Math.max(0, +v("#big-max") || 0);
+  BIGPLAN.from = v("#big-from") || "";
+  BIGPLAN.to = v("#big-to") || "";
+  if ($("#big-dedup")) BIGPLAN.dedup = $("#big-dedup").checked;
+  BIGPLAN.seed = Math.max(0, +v("#big-seed") || 0);
+  BIGPLAN.perPart = Math.max(1000, +v("#big-part") || BIGPLAN.perPart);
+  if ($("#big-labels")) BIGPLAN.labels = v("#big-labels") || "label";
+  if ($("#big-calib")) BIGPLAN.calib = Math.max(0, Math.min(500, +v("#big-calib") || 0));
+  const sc = BIGFILE && BIGFILE.scan;
+  if (sc) {
+    if (BIGPLAN.mode === "top" && BIGPLAN.by < 0) BIGPLAN.by = sc.engCols[0];
+    if (BIGPLAN.mode === "stratified" && BIGPLAN.groupCol < 0) BIGPLAN.groupCol = sc.groupCols[0];
+  }
+  return BIGPLAN;
+}
+
+const bigBusy = (what) => { BIGFILE.busy = true; BIGFILE.what = what; BIGFILE.pct = 0; BIGFILE.msg = ""; render(); };
+const bigDone = (msg, kind) => { BIGFILE.busy = false; BIGFILE.msg = msg || ""; BIGFILE.msgKind = kind || ""; render(); };
+let bigTick = 0;
+async function bigProgress(p, n) {
+  BIGFILE.pct = p; BIGFILE.seen = n;
+  const now = Date.now();
+  if (now - bigTick > 400) {            // repainting on every slice would be slower than the reading
+    bigTick = now;
+    const bar = document.querySelector(".bigprog progress");
+    if (bar) { bar.value = Math.round(p * 100); bar.nextElementSibling.textContent = `${BIGFILE.what || "Reading"} ${Math.round(p * 100)}%`; }
+    else render();
+    await new Promise(r => setTimeout(r, 0));
+  }
+}
+
+async function bigScan() {
+  bigBusy(trUI("Reading"));
+  try {
+    const sc = await scanBig(BIGFILE.file, bigProgress);
+    sc.name = BIGFILE.file.name;
+    BIGFILE.scan = sc;
+    if (sc.rows <= BIG_ROWS) {
+      bigDone(esc(trUI("This file turned out to be small enough to analyse whole.")), "ok");
+    } else {
+      BIGPLAN.size = Math.min(BIG_ROWS, BIGPLAN.size);
+      bigDone("");
+    }
+  } catch (e) { bigDone(esc(trUI("Could not read the file") + ": " + (e.message || e)), "err"); }
+}
+
+async function bigSample(then) {
+  const plan = readBigPlan(), sc = BIGFILE.scan;
+  bigBusy(trUI("Choosing rows"));
+  try {
+    const out = await sampleBig(BIGFILE.file, sc, plan, bigProgress);
+    const cut = out.cut;
+    const bits = [];
+    if (cut.short) bits.push(`${fmt(cut.short)} ${trUI("too short")}`);
+    if (cut.long) bits.push(`${fmt(cut.long)} ${trUI("too long")}`);
+    if (cut.date) bits.push(`${fmt(cut.date)} ${trUI("outside the dates")}`);
+    if (cut.repeat) bits.push(`${fmt(cut.repeat)} ${trUI("repeated text")}`);
+    const note = `${fmt(out.kept.length)} ${trUI("rows kept from")} ${fmt(out.seen)} ${trUI("the filters allowed")}` +
+      (bits.length ? ` · ${trUI("left out")}: ${bits.join(", ")}` : "") +
+      (plan.mode !== "random" && plan.mode !== "top" ? ` · ${out.groups} ${trUI("groups")}` : "");
+    await then(out, plan, note);
+  } catch (e) { bigDone(esc(trUI("Could not take the sample") + ": " + (e.message || e)), "err"); }
+}
+
+// ---------------------------------------------------------------- the four things you can do with it
+async function bigTake() {
+  await bigSample(async (out, plan, note) => {
+    if (!out.kept.length) { bigDone(esc(trUI("Nothing was left after the filters.")), "err"); return; }
+    const sc = BIGFILE.scan;
+    const text = csvText(sc.header, out.kept);
+    const name = fileStem(BIGFILE.file.name) + "_sample_" + out.kept.length + ".csv";
+    files.length = 0;
+    files.push({name, label: stem(BIGFILE.file.name), data: new TextEncoder().encode(text),
+                sampled: {...plan, from_rows: sc.rows, kept: out.kept.length, note}});
+    BIGFILE = null;
+    showFiles();
+    render();
+    toast(note);
+    if (W) loadData();
+  });
+}
+
+async function bigSave() {
+  await bigSample(async (out, plan, note) => {
+    const sc = BIGFILE.scan;
+    const name = fileStem(BIGFILE.file.name) + "_sample_" + out.kept.length + ".csv";
+    await save(name, new TextEncoder().encode(csvText(sc.header, out.kept)), null);
+    bigDone(esc(note), "ok");
+  });
+}
+
+async function bigAnnot() {
+  await bigSample(async (out, plan, note) => {
+    const sc = BIGFILE.scan;
+    const labels = String(BIGPLAN.labels || "label").split(",").map(x => x.trim()).filter(Boolean);
+    const blob = annotationPack(sc, out.kept, plan, labels, BIGPLAN.calib);
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    await save(fileStem(BIGFILE.file.name) + "_to_annotate.zip", buf, null);
+    bigDone(esc(note + " · " + trUI("two annotator files, a calibration set and the settings that made them")), "ok");
+  });
+}
+
+async function bigSplit() {
+  const plan = readBigPlan(), sc = BIGFILE.scan;
+  const per = plan.perPart;
+  const expect = Math.ceil(sc.rows / per);
+  if (expect > 40 && !confirm(trUI("This would make") + " " + expect + " " + trUI("files. Continue?"))) return;
+  bigBusy(trUI("Splitting"));
+  try {
+    const base = fileStem(BIGFILE.file.name);
+    let saved = 0;
+    await splitBig(BIGFILE.file, sc, per, bigProgress, async (n, text, rows) => {
+      await save(`${base}_part${String(n).padStart(2, "0")}.csv`, new TextEncoder().encode(text), null);
+      saved++;
+      await new Promise(r => setTimeout(r, 120));     // a browser refuses a burst of downloads
+    });
+    bigDone(esc(`${saved} ${trUI("parts saved, in file order. Analyse one at a time.")}`), "ok");
+  } catch (e) { bigDone(esc(trUI("Could not split the file") + ": " + (e.message || e)), "err"); }
+}
+
 function addFiles(list) {
-  for (const f of list) { const r = new FileReader(); r.onload = () => { files.push({name: f.name, label: stem(f.name), data: new Uint8Array(r.result)}); showFiles(); }; r.readAsArrayBuffer(f); }
+  for (const f of list) {
+    // Reading a file this size into memory is what would stop the tab, so it is not read: the
+    // panel works from the file itself, a slice at a time.
+    if (f.size > BIG_BYTES) {
+      if (/\.(xlsx|xls)$/i.test(f.name)) {
+        alertMsg(trUI("An Excel file this large cannot be read in slices. Save it as CSV and add that instead."));
+        continue;
+      }
+      BIGFILE = {file: f, scan: null, busy: false};
+      files.length = 0;
+      showFiles(); render();
+      continue;
+    }
+    const r = new FileReader();
+    r.onload = () => { files.push({name: f.name, label: stem(f.name), data: new Uint8Array(r.result)}); showFiles(); };
+    r.readAsArrayBuffer(f);
+  }
 }
 function showFiles() {
   const el = $("#filelist"); if (!el) return;
@@ -2728,10 +3444,14 @@ async function loadData(settings) {
     try { py.FS.readdir("/data").filter(n => !n.startsWith(".")).forEach(n => py.FS.unlink("/data/" + n)); } catch (e) {}
     const paths = files.map((f, i) => { const p = "/data/" + i + "_" + f.name.replace(/[\\/]/g, "_"); py.FS.writeFile(p, f.data); return p; });
     const labels = files.map(f => (f.label || stem(f.name)).trim() || stem(f.name));
-    const st = settings && settings.analysis_tz ? {analysis_tz: settings.analysis_tz, source_tz: settings.source_tz || "UTC", weekend: settings.weekend || "auto"}
+    const st = settings && settings.analysis_tz
+      ? {analysis_tz: settings.analysis_tz, source_tz: settings.source_tz || "UTC",
+         weekend: settings.weekend || "auto",
+         arabic_segmentation: settings.arabic_segmentation !== false}
       : {analysis_tz: tzFromInput($("#tz")?.value) || "Asia/Qatar",
          source_tz: tzFromInput($("#srctz")?.value) || srcTzGuess(),
-         weekend: $("#weekend")?.value || "auto"};
+         weekend: $("#weekend")?.value || "auto",
+         arabic_segmentation: $("#arseg") ? $("#arseg").checked : ARSEG};
     SCAN = JSON.parse(W.load_files(py.toPy(paths), py.toPy(st), $("#platform")?.value || "auto", py.toPy(labels), files.length > 1 ? loadMode : "combine"));
     REG = JSON.parse(W.registry_json()); PL = REG.plain; LEX = JSON.parse(W.lexicon_names());
     for (const k of Object.keys(results)) delete results[k];
@@ -3865,6 +4585,7 @@ function about() {
     <tr><td>${L("First and last post")}</td><td>${esc(s.date_from || "-")} ${L("to")} ${esc(s.date_to || "-")}</td></tr>
     <tr><td>${L("Time zone")}</td><td>${esc(trUI(s.info.timezone_note || s.settings.analysis_tz))}</td></tr>
     <tr><td>${L("Weekend")}</td><td>${esc(trUI(s.info.weekend_note || s.settings.weekend))}</td></tr>
+    <tr><td>${L("Arabic words")}</td><td>${esc(trUI(s.settings.arabic_segmentation === false ? "prefixes left on" : "prefixes taken off before counting"))}</td></tr>
     <tr><td>${L("Information found")}</td><td>${Object.entries(s.capabilities).filter(([, v]) => v).map(([k]) => need(k)).join(", ")}</td></tr>
     <tr><td>${L("Not in this file")}</td><td>${Object.entries(s.capabilities).filter(([, v]) => !v).map(([k]) => need(k)).filter(x => !x.startsWith("has_")).join(", ")}</td></tr></table>
     ${(s.completeness || []).length ? `<h3 class="mh">${L("How complete is each field?")}${iMark(trUI("Share of the loaded posts that have a value. Analyses that need a field use only the posts that have it."))}</h3><table class="g"><tr><th>${L("Field")}</th><th>${L("Posts with a value")}</th></tr>${s.completeness.map(c => `<tr><td>${esc(trUI(COLNAMES[c.field] || c.field))}</td><td>${c.in_file ? `<span class="meter"><span style="width:${c["present_%"]}%"></span></span> ${c["present_%"]}%` : L("not in the file")}</td></tr>`).join("")}</table>` : ""}
