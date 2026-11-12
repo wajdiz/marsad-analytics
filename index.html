@@ -690,6 +690,7 @@ body.bigtext .explore-label{font-size:19px}
 <input type="file" id="projfile" accept=".json,.marsad.json" hidden>
 
 <script src="help.js"></script>
+<script src="analytics.js"></script>
 <script>
 "use strict";
 // The page host serves a fixed set of file types, so archives and wheels are stored with an extra ".wasm" suffix.
@@ -974,6 +975,7 @@ window.addEventListener("scroll", hideTip, true);
 
 // ------------------------------------------------------------------ navigation
 function go(v) {
+  if (window.MarsadStats && v.page === "card" && v.id && (view.page !== "card" || view.id !== v.id)) MarsadStats.event("analysis/" + v.id);
   // Overview was a dead click from inside the collect flow: the page re-rendered into whatever
   // source was still selected, so nothing on screen changed. Leaving the flow clears it.
   if (v.page === "overview" && (COLLECT_CAT || COLLECT_PLAT)) {
@@ -2333,6 +2335,7 @@ async function runCollect() {
   if (!spec) return;
   const q = (($("#c-q") || {}).value || "").trim();
   if (!q && !spec.noq && !spec.optq) { collectMsg(esc(trUI("Type what to search for first.")), "bad"); return; }
+  if (window.MarsadStats) MarsadStats.event("collect/" + COLLECT_SRC);   // the source only: never the search words or a key
   const val = (id) => (($("#" + id) || {}).value || "");
   const opts = {limit: Math.max(1, Math.min(500, parseInt(val("c-n"), 10) || 50)),
                 mode: COLLECT_MODE, lang: val("c-lang"), instance: val("c-inst"),
@@ -2639,6 +2642,7 @@ function sourcesPanel(again) {
         <button class="btn small" data-act="trycompare" data-tip="Loads two practice files and compares them.">${esc(trUI("Try a comparison"))}</button>
         <button class="btn small" data-act="openproject" data-tip="Continue a project you saved with Save project (a .marsad.json file).">${esc(trUI("Open a saved project"))}</button>
       </div>
+      ${window.MarsadStats && MarsadStats.on ? `<p class="small-print" style="margin:14px 0 0">${esc(LANG === "ar" ? "تُحصى زيارات هذا الموقع (البلد، والموقع الذي أحال الزائر، والمتصفح) دون ملفات تعريف الارتباط. ولا تُرسل ملفاتك ولا منشوراتك أبدًا." : "Visits to this site are counted (country, referring site, browser), without cookies. Your files and posts are never sent.")}</p>` : ""}
     </div>
   </div>`;
 }
@@ -3444,6 +3448,7 @@ async function loadData(settings) {
          arabic_segmentation: $("#arseg") ? $("#arseg").checked : ARSEG};
     SCAN = JSON.parse(W.load_files(py.toPy(paths), py.toPy(st), $("#platform")?.value || "auto", py.toPy(labels), files.length > 1 ? loadMode : "combine"));
     REG = JSON.parse(W.registry_json()); PL = REG.plain; LEX = JSON.parse(W.lexicon_names());
+    if (window.MarsadStats) MarsadStats.event(`file-loaded/${MarsadStats.sizeBand(SCAN.posts || 0)}/${SCAN.platform || "other"}`);
     for (const k of Object.keys(results)) delete results[k];
     for (const k of Object.keys(params)) delete params[k];
     saved.clear();
